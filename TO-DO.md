@@ -7,8 +7,9 @@ Run indexing jobs one at a time. Everything else is safe to do while one runs.
 
 - Fixed and verified: C2, C3, C4, C8, C13, C14.
 - Code done but data stale: C10 (inherited methods) — API was rebuilt before the parser edit.
-- Not done: C1 (mods never rebuilt), C7 (slots), C9 (reranker).
+- Not done: C1 (mods never rebuilt).
 - D2 (snapshot CLI) fixed, D3 (eval expectations) fixed, D7 (async dead code) cleaned up.
+- D4 (identifier boost), D5 (reranker deleted), D6 (per-source slots), D8 (FQN resolution) done.
 - Current eval: needs re-run after D3 fixes.
 
 ## Checklist
@@ -28,13 +29,10 @@ Run indexing jobs one at a time. Everything else is safe to do while one runs.
 
 ### Then
 
-- [ ] **D4. Exact-identifier boost.** Known class/method names from FTS; exact query-token match
-      goes first, before rerank.
-- [ ] **D5. Reranker: install it or delete it.** Silent no-op is the worst option.
-- [ ] **D6. Per-source slots** in `search_hytale_docs` after rerank (≥2 api, ≥2 guides, ≥1 mod).
+- [x] **D4. Exact-identifier boost.** `_exact_identifier_boost()` in server.py checks query tokens against FTS class_name/method_name, fetches matching chunks and prepends them.
+- [x] **D5. Reranker deleted.** `reranker.py` removed. All imports/calls removed from server.py, eval/run_eval.py, pyproject.toml.
+- [x] **D6. Per-source slots** in `search_hytale_docs` via `_enforce_source_slots()` (≥2 api, ≥2 guides, ≥1 mod when available).
 
 ### Cleanup
 
-- [ ] **D8.** Resolve `extends` to an FQN via imports/package in `java_parser._get_inherited_methods`
-      (first suffix match is ambiguous for `Builder`, `Data`, `Config`); store `extends_fqn` and use it
-      for subclass lookup.
+- [x] **D8.** `_resolve_extends()` resolves extends to FQN via imports/package (5-step priority). 96% resolution rate. `extends_fqn` stored in metadata.

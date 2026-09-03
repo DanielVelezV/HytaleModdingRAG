@@ -268,6 +268,85 @@ async def index_github_mods(min_stars: int = 2, max_repos: int = 30) -> str:
     )
 
 
+def _exact_identifier_boost(query: str, collection_name: str) -> list[dict]:
+    """If a query token exactly matches a known class or method name, fetch those chunks first."""
+    from fts import _get_conn
+    import sqlite3
+
+    table = f"fts_{collection_name}"
+    conn = _get_conn()
+    try:
+        conn.execute(f"SELECT 1 FROM [{table}] LIMIT 1")
+    except sqlite3.OperationalError:
+        return []
+
+    tokens = query.split()
+    boosted_ids: list[str] = []
+    for token in tokens:
+        cleaned = "".join(c for c in token if c.isalnum() or c in "._")
+        if not cleaned or len(cleaned) < 3:
+            continue
+        rows = conn.execute(
+            f"SELECT chunk_id FROM [{table}] WHERE class_name = ? OR method_name = ? LIMIT 5",
+            (cleaned, cleaned),
+        ).fetchall()
+        for row in rows:
+            if row[0] not in boosted_ids:
+                boosted_ids.append(row[0])
+
+    if not boosted_ids:
+        return []
+
+    from indexer import get_collection
+    try:
+        col = get_collection(collection_name)
+        result = col.get(ids=boosted_ids[:10], include=["metadatas", "documents"])
+        boosted = []
+        for i, eid in enumerate(result["ids"]):
+            boosted.append({
+                "id": eid,
+                "text": result["documents"][i],
+                "metadata": result["metadatas"][i],
+                "distance": 0.0,
+                "rrf_score": 1.0,
+            })
+        return boosted
+    except Exception:
+        return []
+
+
+def _enforce_source_slots(results: list[dict], limit: int,
+                          min_api: int = 2, min_guides: int = 2, min_mods: int = 1) -> list[dict]:
+    """Guarantee minimum per-source slots in combined results when available."""
+    by_source: dict[str, list[dict]] = {"api": [], "guide": [], "mod": []}
+    for r in results:
+        src = r.get("metadata", {}).get("source", "")
+        if src in by_source:
+            by_source[src].append(r)
+        else:
+            by_source.setdefault("other", []).append(r)
+
+    reserved: list[dict] = []
+    seen_ids: set[str] = set()
+
+    for source, minimum in [("api", min_api), ("guide", min_guides), ("mod", min_mods)]:
+        for r in by_source.get(source, []):
+            if len([x for x in reserved if x.get("metadata", {}).get("source") == source]) >= minimum:
+                break
+            if r["id"] not in seen_ids:
+                reserved.append(r)
+                seen_ids.add(r["id"])
+
+    for r in results:
+        if len(reserved) >= limit:
+            break
+        if r["id"] not in seen_ids:
+            reserved.append(r)
+            seen_ids.add(r["id"])
+
+    return reserved[:limit]
+
+
 @mcp.tool()
 def search_hytale_docs(query: str, limit: int = 8) -> str:
     """Search across ALL Hytale documentation — decompiled Java API, community guides, AND real mod examples from GitHub.
@@ -281,7 +360,6 @@ def search_hytale_docs(query: str, limit: int = 8) -> str:
     """
     from indexer import search
     from fts import hybrid_search
-    from reranker import rerank
 
     fetch = max(30, limit * 3)
     api_dense = search(query, API_COLLECTION, n_results=fetch)
@@ -292,8 +370,21 @@ def search_hytale_docs(query: str, limit: int = 8) -> str:
     guide_results = hybrid_search(query, GUIDES_COLLECTION, guide_dense, n_results=fetch // 3)
     mod_results = hybrid_search(query, MODS_COLLECTION, mod_dense, n_results=fetch // 4)
 
+    boosted: list[dict] = []
+    for col_name in [API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION]:
+        boosted.extend(_exact_identifier_boost(query, col_name))
+
     combined = api_results + guide_results + mod_results
-    all_results = rerank(query, combined, top_k=limit)
+    combined.sort(key=lambda r: r.get("rrf_score", 0), reverse=True)
+
+    seen = {r["id"] for r in boosted}
+    merged = list(boosted)
+    for r in combined:
+        if r["id"] not in seen:
+            merged.append(r)
+            seen.add(r["id"])
+
+    all_results = _enforce_source_slots(merged, limit)
 
     if not all_results:
         return "No results found. Make sure you've run index_jar, scrape_guides, and/or index_github_mods first."
@@ -316,16 +407,23 @@ def search_hytale_api(query: str, limit: int = 8, package: str = "", type: str =
     """
     from indexer import search
     from fts import hybrid_search
-    from reranker import rerank
 
     fetch = max(30, limit * 3)
     dense = search(query, API_COLLECTION, n_results=fetch, package_filter=package, type_filter=type)
     results = hybrid_search(query, API_COLLECTION, dense, n_results=fetch)
-    results = rerank(query, results, top_k=limit)
-    if not results:
+
+    boosted = _exact_identifier_boost(query, API_COLLECTION)
+    seen = {r["id"] for r in boosted}
+    merged = list(boosted)
+    for r in results:
+        if r["id"] not in seen:
+            merged.append(r)
+            seen.add(r["id"])
+
+    if not merged:
         return "No API results. Run index_jar first to index a HytaleServer.jar."
 
-    return _format_results(results)
+    return _format_results(merged[:limit])
 
 
 @mcp.tool()
@@ -341,16 +439,15 @@ def search_hytale_guides(query: str, limit: int = 8) -> str:
     """
     from indexer import search
     from fts import hybrid_search
-    from reranker import rerank
 
     fetch = max(30, limit * 3)
     dense = search(query, GUIDES_COLLECTION, n_results=fetch)
     results = hybrid_search(query, GUIDES_COLLECTION, dense, n_results=fetch)
-    results = rerank(query, results, top_k=limit)
+
     if not results:
         return "No guide results. Run scrape_guides first to index the community docs."
 
-    return _format_results(results)
+    return _format_results(results[:limit])
 
 
 @mcp.tool()
@@ -366,16 +463,15 @@ def search_hytale_mods(query: str, limit: int = 8) -> str:
     """
     from indexer import search
     from fts import hybrid_search
-    from reranker import rerank
 
     fetch = max(30, limit * 3)
     dense = search(query, MODS_COLLECTION, n_results=fetch)
     results = hybrid_search(query, MODS_COLLECTION, dense, n_results=fetch)
-    results = rerank(query, results, top_k=limit)
+
     if not results:
         return "No mod examples indexed. Run index_github_mods first."
 
-    return _format_results(results)
+    return _format_results(results[:limit])
 
 
 def _collect_inherited_methods(collection, parent_name: str, depth: int = 0) -> list[str]:

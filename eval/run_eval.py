@@ -57,11 +57,9 @@ def recall_at_k(results: list[dict], expected_fqns: list[str], k: int) -> float:
     return 0.0
 
 
-def run_eval(use_rerank: bool = False):
+def run_eval():
     questions = load_questions()
     print(f"Running eval on {len(questions)} questions...")
-    if use_rerank:
-        print("  (with reranker enabled)")
     print()
 
     source_map = {
@@ -89,21 +87,11 @@ def run_eval(use_rerank: bool = False):
         else:
             collections = [API_COLLECTION]
 
-        if use_rerank:
-            from fts import hybrid_search
-            from reranker import rerank
-            all_hits = []
-            for col in collections:
-                dense = search(query, col, n_results=10)
-                fused = hybrid_search(query, col, dense, n_results=20)
-                all_hits.extend(fused)
-            all_hits = rerank(query, all_hits, top_k=10)
-        else:
-            all_hits = []
-            for col in collections:
-                hits = search(query, col, n_results=10)
-                all_hits.extend(hits)
-            all_hits.sort(key=lambda r: r.get("distance") if r.get("distance") is not None else 999)
+        all_hits = []
+        for col in collections:
+            hits = search(query, col, n_results=10)
+            all_hits.extend(hits)
+        all_hits.sort(key=lambda r: r.get("distance") if r.get("distance") is not None else 999)
 
         r5 = recall_at_k(all_hits, expected, 5)
         r10 = recall_at_k(all_hits, expected, 10)
@@ -173,5 +161,4 @@ def run_eval(use_rerank: bool = False):
 
 
 if __name__ == "__main__":
-    use_rerank = "--rerank" in sys.argv
-    run_eval(use_rerank=use_rerank)
+    run_eval()

@@ -606,6 +606,33 @@ def _build_class_overview_chunk(
 
 # --- inheritance map for two-pass parsing ---
 
+def _resolve_extends(simple_name: str, imports: list[str], package: str,
+                     class_map: dict) -> str:
+    """Resolve a simple class name to an FQN using imports, package, then unique suffix."""
+    if not simple_name:
+        return ""
+    if simple_name in class_map:
+        return simple_name
+    for imp in imports:
+        imp_clean = imp.replace("import ", "").replace("static ", "").rstrip(";").strip()
+        if imp_clean.endswith("." + simple_name):
+            if imp_clean in class_map:
+                return imp_clean
+    same_pkg = f"{package}.{simple_name}" if package else simple_name
+    if same_pkg in class_map:
+        return same_pkg
+    for imp in imports:
+        imp_clean = imp.replace("import ", "").replace("static ", "").rstrip(";").strip()
+        if imp_clean.endswith(".*"):
+            candidate = imp_clean[:-1] + simple_name
+            if candidate in class_map:
+                return candidate
+    candidates = [k for k in class_map if k.endswith("." + simple_name)]
+    if len(candidates) == 1:
+        return candidates[0]
+    return ""
+
+
 def _collect_type_info(class_node, source_bytes: bytes, fqn: str, package: str) -> dict:
     """Extract extends + public method signatures from a type node for the inheritance map."""
     extends = _get_superclass(class_node)
@@ -631,7 +658,7 @@ def _collect_type_info(class_node, source_bytes: bytes, fqn: str, package: str) 
 
 
 def _collect_all_class_info(source_dir: Path) -> dict[str, dict]:
-    """Pass 1: Build {fqn: {extends, method_sigs}} for inherited method resolution."""
+    """Pass 1: Build {fqn: {extends, method_sigs, imports, package}} for inherited method resolution."""
     class_map: dict[str, dict] = {}
 
     for java_file in sorted(source_dir.rglob("*.java")):
@@ -643,16 +670,22 @@ def _collect_all_class_info(source_dir: Path) -> dict[str, dict]:
         tree = _parser.parse(raw)
         root = tree.root_node
         package = _extract_package_from_root(root, raw)
+        imports = _extract_imports_from_root(root, raw)
 
         for child in root.children:
             if child.type in _TYPE_NODES:
                 name = _get_name(child)
                 fqn = f"{package}.{name}" if package else name
                 info = _collect_type_info(child, raw, fqn, package)
-                class_map[fqn] = {"extends": info["extends"], "method_sigs": info["method_sigs"]}
+                class_map[fqn] = {
+                    "extends": info["extends"],
+                    "method_sigs": info["method_sigs"],
+                    "imports": imports,
+                    "package": package,
+                }
                 for key, val in info.items():
                     if isinstance(val, dict) and "extends" in val:
-                        class_map[key] = val
+                        class_map[key] = {**val, "imports": imports, "package": package}
 
     return class_map
 
@@ -661,12 +694,14 @@ def _get_inherited_methods(fqn: str, class_map: dict, max_depth: int = 5) -> lis
     """Walk the extends chain, return [(signature, parent_fqn)]."""
     inherited: list[tuple[str, str]] = []
     visited = {fqn}
-    current = class_map.get(fqn, {}).get("extends", "")
+    entry = class_map.get(fqn, {})
+    current = entry.get("extends", "")
+    cur_imports = entry.get("imports", [])
+    cur_package = entry.get("package", "")
     depth = 0
 
     while current and depth < max_depth:
-        candidates = [k for k in class_map if k == current or k.endswith("." + current)]
-        resolved = candidates[0] if candidates else ""
+        resolved = _resolve_extends(current, cur_imports, cur_package, class_map)
         if not resolved or resolved in visited:
             break
         visited.add(resolved)
@@ -674,6 +709,8 @@ def _get_inherited_methods(fqn: str, class_map: dict, max_depth: int = 5) -> lis
         for sig in parent_info["method_sigs"]:
             inherited.append((sig.strip().rstrip(";"), resolved))
         current = parent_info.get("extends", "")
+        cur_imports = parent_info.get("imports", [])
+        cur_package = parent_info.get("package", "")
         depth += 1
 
     return inherited
@@ -733,6 +770,13 @@ def _process_type_node(
         "extends": extends,
         "implements": implements,
     }
+    if class_map and extends:
+        entry = class_map.get(fqn, {})
+        resolved_extends = _resolve_extends(
+            extends, entry.get("imports", []), package, class_map,
+        )
+        if resolved_extends:
+            class_meta["extends_fqn"] = resolved_extends
     if nested_in:
         class_meta["nested_in"] = nested_in
 
