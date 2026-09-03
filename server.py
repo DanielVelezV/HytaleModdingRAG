@@ -1066,18 +1066,20 @@ def _format_results(results: list[dict]) -> str:
 
 
 @mcp.tool()
-def create_mod(name: str, output_dir: str, group: str = "", author: str = "") -> str:
+def create_mod(name: str, output_dir: str, group: str = "", author: str = "", hot_reload: bool = False) -> str:
     """Scaffold a complete Hytale mod project ready for IntelliJ + Gradle.
 
     Creates a full project with build.gradle (shadow plugin), manifest.json,
-    main plugin class, IntelliJ run configs, boot-server.ps1, and Gradle wrapper.
-    Open the output directory in IntelliJ and hit Build & Deploy to get started.
+    main plugin class, IntelliJ run configs, server downloader, and Gradle wrapper.
+    On first run, the setup script downloads HytaleServer.jar and Assets.zip
+    automatically via the official Hytale downloader.
 
     Args:
         name: Mod name in PascalCase (e.g. "MyFirstMod"). Used for class names, jar, and manifest.
         output_dir: Absolute path where the project folder will be created (e.g. "C:/Users/Me/Desktop").
         group: Java package group (default: "com.<name_lowercase>"), e.g. "com.mymod".
         author: Author name for manifest.json (default: empty).
+        hot_reload: Enable hot reload with -XX:+AllowEnhancedClassRedefinition. Requires JetBrains Runtime (JBR) 25, not standard JDK/Temurin.
     """
     import shutil
 
@@ -1117,52 +1119,25 @@ repositories {{
     mavenCentral()
 }}
 
-def serverJarPath = file('libs/HytaleServer.jar')
-def localServerJar = file('server/HytaleServer.jar')
-
 dependencies {{
-    if (serverJarPath.exists()) {{
-        compileOnly files(serverJarPath)
-    }} else if (localServerJar.exists()) {{
-        compileOnly files(localServerJar)
-    }} else {{
-        compileOnly files('libs/HytaleServer.jar')
-    }}
+    implementation files('libs/HytaleServer.jar')
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 }}
 
 java {{
     toolchain {{
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(25){"""
+        vendor = JvmVendorSpec.JETBRAINS""" if hot_reload else ""}
     }}
 }}
 
 shadowJar {{
     archiveClassifier.set('')
-    dependencies {{
-        exclude(dependency {{ it.moduleGroup == 'com.hypixel' }})
-    }}
+    exclude 'com/hypixel/**'
 }}
 
 tasks.named('jar') {{ enabled = false }}
 tasks.named('build') {{ dependsOn shadowJar }}
-
-tasks.register('copyServerJar') {{
-    doLast {{
-        def destJar = file('libs/HytaleServer.jar')
-        if (!destJar.exists()) {{
-            def sources = [file('server/HytaleServer.jar')]
-            for (src in sources) {{
-                if (src.exists()) {{
-                    copy {{ from src; into 'libs' }}
-                    break
-                }}
-            }}
-        }}
-    }}
-}}
-
-tasks.named('compileJava') {{ dependsOn 'copyServerJar' }}
 """, encoding="utf-8")
 
     # --- settings.gradle ---
@@ -1247,8 +1222,12 @@ build/
 .idea/*
 !.idea/runConfigurations/
 *.iml
-libs/HytaleServer.jar
-server/
+libs/
+server/HytaleServer.jar
+server/Assets.zip
+server/game.zip
+server/_extract/
+server/.hytale-downloader-credentials.json
 run/
 """, encoding="utf-8")
 
@@ -1285,14 +1264,15 @@ run/
     (idea_dir / "ShadowJar.xml").write_text(
         _run_config("ShadowJar", ["shadowJar"]), encoding="utf-8")
 
-    # --- Hytale Server run config (Application with hot reload) ---
+    # --- Hytale Server run config (Application, optional hot reload) ---
+    vm_params = "-XX:+AllowEnhancedClassRedefinition" if hot_reload else ""
     (idea_dir / "Hytale_Server.xml").write_text(f"""\
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Hytale Server" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="com.hypixel.hytale.Main" />
     <module name="{lower}.main" />
-    <option name="PROGRAM_PARAMETERS" value="--allow-op --disable-sentry" />
-    <option name="VM_PARAMETERS" value="-XX:+AllowEnhancedClassRedefinition" />
+    <option name="PROGRAM_PARAMETERS" value="--allow-op --disable-sentry --assets=$PROJECT_DIR$/server/Assets.zip" />
+    <option name="VM_PARAMETERS" value="{vm_params}" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/run" />
     <method v="2">
       <option name="Make" enabled="true" />
@@ -1305,10 +1285,14 @@ run/
     run_mods = run_dir / "mods"
     run_mods.mkdir(parents=True, exist_ok=True)
 
-    # --- boot-server.ps1 (copy from template) ---
-    template_boot = Path(__file__).parent / "server" / "boot-server.ps1"
-    if template_boot.exists():
-        shutil.copy2(template_boot, server_dir / "boot-server.ps1")
+    # --- Copy server scripts and downloader binaries ---
+    template_dir = Path(__file__).parent / "server"
+    for fname in ["setup.ps1", "boot-server.ps1",
+                   "hytale-downloader-windows-amd64.exe",
+                   "hytale-downloader-linux-amd64"]:
+        src = template_dir / fname
+        if src.exists():
+            shutil.copy2(src, server_dir / fname)
 
     # --- Gradle wrapper ---
     (gradle_dir / "gradle-wrapper.properties").write_text("""\
@@ -1321,7 +1305,6 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 """, encoding="utf-8")
 
-    # Copy gradlew scripts if available from a known location
     hythaum = Path(__file__).parent.parent / "Hythaum"
     for f in ["gradlew", "gradlew.bat"]:
         src = hythaum / f
@@ -1332,6 +1315,24 @@ zipStorePath=wrapper/dists
         shutil.copy2(wrapper_jar, gradle_dir / "gradle-wrapper.jar")
 
     file_count = sum(1 for _ in out.rglob("*") if _.is_file())
+
+    if hot_reload:
+        jdk_instruction = "Set **Gradle JDK** to **JetBrains Runtime (JBR) 25** (Settings > Build Tools > Gradle)"
+        hot_reload_section = """
+## Hot reload (enabled)
+
+**Requires JetBrains Runtime (JBR) 25** — standard JDK/Temurin will not work.
+Download JBR: IntelliJ > Settings > Build Tools > Gradle > Gradle JDK > Download JDK > Vendor: JetBrains Runtime
+
+The "Hytale Server" config launches with `-XX:+AllowEnhancedClassRedefinition`.
+Edit code, press **Ctrl+F9** (Build) — changes apply without restarting the server.
+"""
+        run_config_comment = "# Run with hot reload (-XX:+AllowEnhancedClassRedefinition, requires JBR 25)"
+    else:
+        jdk_instruction = "Set **Gradle JDK** to Java 25 (Settings > Build Tools > Gradle)"
+        hot_reload_section = ""
+        run_config_comment = "# Run server (add -XX:+AllowEnhancedClassRedefinition for hot reload with JBR 25)"
+
     return f"""\
 # Mod "{safe_name}" created!
 
@@ -1341,17 +1342,12 @@ zipStorePath=wrapper/dists
 
 ## Quick start
 
-1. **Copy HytaleServer.jar** into `{out / 'libs'}`
-2. **Copy Assets.zip** into `{out / 'run'}` (from `%APPDATA%\\Hytale\\install\\release\\package\\game\\latest`)
-3. **Open** `{out}` in IntelliJ IDEA
-4. Set **Gradle JDK** to Java 25 (Settings > Build Tools > Gradle)
-5. Select **"Hytale Server"** run configuration and hit Run
-
-## Hot reload
-
-The "Hytale Server" config launches with `-XX:+AllowEnhancedClassRedefinition`.
-Edit code, press **Ctrl+F9** (Build) — changes apply without restarting the server.
-
+1. **Run setup:** `cd {out / 'server'}` then `.\\setup.ps1`
+   — downloads HytaleServer.jar and Assets.zip (prompts for patchline, opens browser for auth)
+2. **Open** `{out}` in IntelliJ IDEA
+3. {jdk_instruction}
+4. Select **"Hytale Server"** run configuration and hit Run
+{hot_reload_section}
 ## Project structure
 
 ```
@@ -1360,15 +1356,17 @@ Edit code, press **Ctrl+F9** (Build) — changes apply without restarting the se
   settings.gradle
   gradle.properties
   .gitignore
-  run/                      # Working dir for Hytale Server (put Assets.zip here)
+  run/                      # Working dir for Hytale Server
     mods/                   # Mod jars loaded at runtime
   server/
+    setup.ps1               # First-run: downloads server + assets
     boot-server.ps1         # Standalone launcher (no IntelliJ needed)
+    hytale-downloader-*     # Official Hytale downloader binaries
   src/main/
     java/{pkg_path}/{safe_name}Plugin.java
     resources/manifest.json
   .idea/runConfigurations/
-    Hytale_Server.xml       # Run with hot reload (-XX:+AllowEnhancedClassRedefinition)
+    Hytale_Server.xml       {run_config_comment}
     Build.xml / Clean_Build.xml / ShadowJar.xml
   gradle/wrapper/           # Gradle 9.2.1 wrapper
 ```
