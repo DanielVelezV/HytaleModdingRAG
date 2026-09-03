@@ -28,5 +28,7 @@ SNAPSHOTS_DIR = DATA_DIR / "snapshots"
 
 HYTALE_PACKAGE_PREFIX = "com.hypixel.hytale"
 
+GITHUB_DATA_REPO = os.environ.get("HYTALE_RAG_REPO", "elwarriorcito/HytaleModdingRAG")
+
 MAX_CHUNK_SIZE = 1500
 CHUNK_OVERLAP = 200
