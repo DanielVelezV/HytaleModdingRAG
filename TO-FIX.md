@@ -450,3 +450,126 @@ python cli.py index-jar "C:\Users\User\Desktop\Hythaum\server\HytaleServer.jar" 
 
 ### D9. Commit  (do this first, actually)
 - `git add -A && git commit -m "RAG server: tree-sitter parser, hybrid search, CLI, eval"`.
+
+---
+
+# ROUND 4 — Audit of the D-list (2026-09-03, ~10:05 local)
+
+Verified by: git log, pytest (46 pass), `pip install -e .` dry run (OK), FTS table counts, live
+collection sampling, an independent eval run, and calling the server tool functions directly.
+
+| Item | Verdict | Notes |
+|---|---|---|
+| D9 commit | OK | 4 commits. `server.py` (boost rewrite) and `TO-DO.md` are modified and uncommitted. |
+| D1 rebuild both | OK (TO-DO.md is stale, it says not done) | mods: 11,092 chunks, 30 `mod_readme`, `hytale_version` on 127 chunks, `updated_at` on all, `fts_hytale_mods` present, `embed_model` set. api: rebuilt 14:55 UTC, `jar_hash` set, 1,702 of 4,000 sampled overviews carry `// Inherited methods:`, `extends_fqn` on 1,722 of 1,783 classes with a superclass (96.6%). |
+| D2 CLI snapshot | OK, minus cleanup | Signatures fixed, `index.json` cleared. The 1.9 GB `.json.gz` is still on disk. README still documents `--source`. |
+| D3 eval expectations | OK | 0 nonexistent names. Independent run: **Recall@5 73.3%, Recall@10 76.7%, MRR 0.487** (api 74.1%, guides 100%, any 0%). Matches the claim. |
+| D4 identifier boost | OK | `search_hytale_api("BlockType")` and `search_hytale_docs("... AbstractCommand")` return the exact class first. Nit: every capitalised word (e.g. "How") triggers a Chroma `get`; boosted rows show "similarity: 1.00" because `distance` is forced to 0.0, which is misleading. |
+| D5 reranker | DELETED, with a side effect | `reranker.py`, imports, and the extra are gone. But nothing replaced the cross-source ranking: `search_hytale_docs` now returns `api(15) + guide(10) + mod(7)` concatenated in that order, then slot-fills and truncates. API chunks always outrank guide chunks regardless of score. See E1. |
+| D6 per-source slots | BUG | `_enforce_source_slots` uses the key `"guides"`, but guide chunks carry `source: "guide"` (indexer.py:399/411). The guide slot never matches. Live test of "how to register a command with AbstractCommand" returned 7 API + 1 MOD and zero guides. See E2. |
+| D7 dead code | OK | Async duplicates and `import asyncio` gone; `data/github_mods/` empty. `eval/compare_models.py` still present and still invalid. |
+| D8 extends resolution | OK | Import → same package → wildcard import → unique suffix. 96.6% resolved; `extends_fqn` in metadata. |
+| Eval scope | GAP | `run_eval.py` is dense-only (`indexer.search` sorted by distance). It does not measure hybrid fusion, the identifier boost, or slots, i.e. not what the MCP tools actually return. The "any" question scores 0 for exactly this reason. See E3. |
+
+## Round-4 fix list
+
+### E1. Rank across sources before slot-filling  (HIGH)
+- In `search_hytale_docs`, after the three `hybrid_search` calls, sort `combined` by `rrf_score`
+  descending (boosted rows: give them `rrf_score = 1.0` instead of `distance = 0.0`) BEFORE
+  `_enforce_source_slots`. RRF scores are rank-based and comparable across collections.
+- Same in the single-source tools: `hybrid_search` output is already sorted; make sure the boost
+  prepends without breaking that (it does today) and drop the fake `distance: 0.0`.
+
+### E2. Fix the slot key  (HIGH, one line)
+- `server.py` `_enforce_source_slots`: `SLOTS = {"api": 2, "guide": 2, "mod": 1}`.
+- Add a test that feeds three fake sources through it.
+
+### E3. Make the eval measure the real pipeline  (HIGH)
+- Add `--pipeline` to `run_eval.py`: for each question call the actual tool functions
+  (`search_hytale_api` / `search_hytale_guides` / `search_hytale_docs` depending on `source`) and
+  parse the fqns from the result, or refactor the tool bodies into plain functions returning dicts
+  and have both the tools and the eval call those. Report dense-only and pipeline side by side.
+- Record both numbers here after E1/E2.
+
+### E4. Cleanup  (LOW)
+- Delete `data/snapshots/hytale_api_20260903_113622_full-267k-all-packages.json.gz` (1.9 GB, unrestorable).
+- Delete `eval/compare_models.py` (or rewrite with a temp index; nobody has).
+- README: snapshot rows → `snapshot save [--label]`, `snapshot list`, `snapshot restore <name>`, `snapshot delete <name>`; add `get_method_source`, `find_usages`, hybrid search, and the eval command.
+- Commit `server.py` and `TO-DO.md`.
+- Boost regex: skip tokens that are common English words at sentence start (or require the token to
+  exist in the FTS `class_name` set before hitting Chroma).
+
+## Baselines (dense-only, 30 questions)
+
+| When | R@5 | R@10 | MRR |
+|---|---|---|---|
+| Round 3 (strict matching, 16 bogus expectations) | 63.3% | 66.7% | 0.394 |
+| Round 4 (expectations fixed, API rebuilt with inherited methods) | 73.3% | 76.7% | 0.487 |
+
+---
+
+# ROUND 5 — Audit of the E-list (2026-09-03, ~10:20 local)
+
+All four E items are done and verified. pytest 51 pass (5 new in `tests/test_server.py`). Live call
+of `search_hytale_docs` now returns guides (2 of 8) and results are ordered by `rrf_score`. The 1.9 GB
+snapshot and `compare_models.py` are gone, README is updated, `_BOOST_SKIP` filters common words.
+Not committed: 7 modified/new files (`git status`).
+
+The eval `--pipeline` replica matches the server tool bodies line for line. And it delivers the most
+important number of all five rounds:
+
+| Mode (30 questions) | R@5 | R@10 | MRR |
+|---|---|---|---|
+| Dense-only | 73.3% | 76.7% | 0.487 |
+| **Pipeline (hybrid + boost + slots)** | **50.0%** | **70.0%** | **0.374** |
+
+**The hybrid layer makes retrieval worse, not better.** 7 questions that dense search gets right in
+the top 5 are lost once keyword fusion is applied (create a custom plugin, inventory management, async
+event handling, player data storage, interaction system, entity components, plugin class loading). No
+question improved.
+
+## Why (diagnosed on three regressed queries)
+
+1. **The FTS query is an OR of single words.** "entity spawning" → `"entity" OR "spawning"`;
+   "command autocompletion" → `"command" OR "autocompletion"`. Common words match thousands of chunks
+   and BM25 ranks short method chunks whose name contains the word (`spawned`, `setCancelled`,
+   `addSubCommand`) at the top. Those are almost never the class the question is about.
+2. **RRF fuses keyword and dense at equal weight**, so 30 keyword hits of that quality displace the
+   dense results. Fused top-5 for "entity spawning": `NPCEntity`, `World`, `SensorEntityBase`...
+   versus dense top-5 which already had `SpawningPlugin`.
+3. **No per-class diversity.** "inventory management" pipeline top-3 is `Inventory`, `Inventory`,
+   `Inventory` (three method chunks of one class), crowding out `InventoryComponent` / `ItemStack`.
+4. **The boost never fires on natural-language queries** (it needs a CamelCase token), so it only
+   helps when the user already knows the class name.
+
+## Round-5 fix list — tune retrieval against the eval, don't guess
+
+The eval is now trustworthy and measures the real pipeline. Every change below must be run through
+`python eval/run_eval.py --pipeline` and kept only if pipeline R@5 ≥ dense-only R@5.
+
+### F1. Make keyword search precise instead of broad  (HIGH)
+Try in this order, measure each:
+- a. Weighted RRF: `score = 1/(k+dense_rank) + w/(k+kw_rank)` with `w = 0.3`; expose `w` as a config value.
+- b. Use `AND` between query tokens for FTS (fall back to `OR` only if `AND` returns < 3 rows).
+- c. Restrict keyword matching to `fqn`, `class_name`, `method_name` columns (drop `body`) for
+  queries with no identifier-like token; keep `body` for identifier queries.
+- d. Only apply keyword fusion when the query contains an identifier-like token (CamelCase, dotted,
+  or a token that exactly equals a known class/method name); pure natural-language queries go dense-only.
+- Record the R@5 for each variant here. Keep the best; delete the rest.
+
+### F2. Per-class diversity in the final list  (MEDIUM)
+- After ranking, allow at most 2 chunks per `fqn` in the returned `limit` (skip extras, backfill from
+  further down). Prefer the `class_overview` chunk over method chunks when both are present.
+
+### F3. Case-insensitive identifier boost  (MEDIUM)
+- Also boost when a lowercase query token (≥5 chars) equals a known `class_name` case-insensitively
+  ("inventory" → `Inventory`, "interaction" → `Interaction`). Build the lookup set once from FTS.
+  Measure; it may over-trigger.
+
+### F4. Commit  (do now)
+- `git add -A && git commit -m "E1-E4: slot key, cross-source ranking, pipeline eval, cleanup"`.
+
+### F5. Record the two numbers in this table after every ranking change
+| Change | Dense R@5 | Pipeline R@5 | Pipeline MRR |
+|---|---|---|---|
+| Round 5 baseline | 73.3% | 50.0% | 0.374 |
