@@ -1,15 +1,15 @@
 {
   "summary": {
     "questions": 30,
-    "recall_at_5": 0.6333,
-    "recall_at_10": 0.6667,
-    "mrr": 0.3939
+    "recall_at_5": 0.7,
+    "recall_at_10": 0.7667,
+    "mrr": 0.4906
   },
   "per_source": {
     "api": {
-      "r5": 0.6296,
-      "r10": 0.6667,
-      "mrr": 0.3636,
+      "r5": 0.7037,
+      "r10": 0.7778,
+      "mrr": 0.471,
       "n": 27
     },
     "any": {
@@ -186,7 +186,7 @@
       "expected": [
         "LivingEntity",
         "EntityUtils",
-        "EntityManager"
+        "EntityModule"
       ],
       "source": "api",
       "recall@5": 0.0,
@@ -357,7 +357,7 @@
         {
           "fqn": "com.hypixel.hytale.server.core.event.events.ecs.InventoryActiveSlotRequestEvent",
           "type": "class_overview",
-          "distance": 0.284559965133667
+          "distance": 0.2852882742881775
         },
         {
           "fqn": "com.hypixel.hytale.builtin.adventure.worldevents.system.WorldEventTickSystem",
@@ -365,14 +365,14 @@
           "distance": 0.2900426983833313
         },
         {
-          "fqn": "com.hypixel.hytale.server.core.event.events.ecs.GameModeTypeEnterEvent",
-          "type": "class_overview",
-          "distance": 0.2901838421821594
-        },
-        {
           "fqn": "com.hypixel.hytale.server.core.event.events.ecs.RespawnEvent",
           "type": "class_overview",
-          "distance": 0.2923635244369507
+          "distance": 0.29113829135894775
+        },
+        {
+          "fqn": "com.hypixel.hytale.server.core.event.events.ecs.GameModeTypeEnterEvent",
+          "type": "class_overview",
+          "distance": 0.2957680821418762
         }
       ]
     },
@@ -535,20 +535,16 @@
     {
       "question": "entity damage system",
       "expected": [
-        "DamageSource",
+        "Damage",
         "LivingEntity",
-        "ExplosionConfig"
+        "DamageCalculator",
+        "DamageSystems"
       ],
       "source": "api",
       "recall@5": 0.0,
       "recall@10": 0.0,
       "mrr": 0.0,
       "top_results": [
-        {
-          "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem",
-          "type": "class_overview",
-          "distance": 0.24287652969360352
-        },
         {
           "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.PlayerHitIndicators",
           "type": "method",
@@ -565,19 +561,24 @@
           "distance": 0.25149238109588623
         },
         {
-          "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.DamageStamina",
-          "type": "class_overview",
-          "distance": 0.25366753339767456
+          "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.ApplyParticles",
+          "type": "method",
+          "distance": 0.25428974628448486
+        },
+        {
+          "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.HitAnimation",
+          "type": "method",
+          "distance": 0.2558923363685608
         }
       ]
     },
     {
       "question": "NPC behavior and AI",
       "expected": [
-        "NpcComponent",
-        "DecisionMaker",
-        "FlockComponent",
-        "BlackboardComponent"
+        "NPCEntity",
+        "NPCSystems",
+        "Blackboard",
+        "BlackboardSystems"
       ],
       "source": "api",
       "recall@5": 0.0,
@@ -595,6 +596,11 @@
           "distance": 0.34036684036254883
         },
         {
+          "fqn": "com.hypixel.hytale.server.npc.role.support.PositionCache",
+          "type": "method",
+          "distance": 0.3408359885215759
+        },
+        {
           "fqn": "com.hypixel.hytale.server.npc.corecomponents.entity.prioritisers.SensorEntityPrioritiserAttitude",
           "type": "method",
           "distance": 0.3423038721084595
@@ -603,11 +609,6 @@
           "fqn": "com.hypixel.hytale.server.spawning.assets.spawns.config.NPCSpawn",
           "type": "method",
           "distance": 0.34394532442092896
-        },
-        {
-          "fqn": "com.hypixel.hytale.server.spawning.world.WorldEnvironmentSpawnData",
-          "type": "method",
-          "distance": 0.3445952534675598
         }
       ]
     },
@@ -639,14 +640,14 @@
           "distance": 0.34961795806884766
         },
         {
+          "fqn": "com.hypixel.hytale.server.core.modules.entity.item.PickupItemComponent",
+          "type": "method",
+          "distance": 0.35484856367111206
+        },
+        {
           "fqn": "com.hypixel.hytale.server.core.plugin.commands.PluginCommand.PluginManageCommand",
           "type": "constructor",
           "distance": 0.35525912046432495
-        },
-        {
-          "fqn": "com.hypixel.hytale.server.core.plugin.PluginManager",
-          "type": "constructor",
-          "distance": 0.35846370458602905
         }
       ]
     },
@@ -694,12 +695,12 @@
       "expected": [
         "Registry",
         "Registration",
-        "RegistryManager"
+        "AssetRegistry"
       ],
       "source": "api",
-      "recall@5": 1.0,
+      "recall@5": 0.0,
       "recall@10": 1.0,
-      "mrr": 0.2,
+      "mrr": 0.16666666666666666,
       "top_results": [
         {
           "fqn": "com.hypixel.hytale.component.ResourceType",
@@ -722,9 +723,9 @@
           "distance": 0.3348631262779236
         },
         {
-          "fqn": "com.hypixel.hytale.registry.Registry",
+          "fqn": "com.hypixel.hytale.builtin.hytalegenerator.props.deprecated.directionality.RandomDirectionality",
           "type": "method",
-          "distance": 0.3378077745437622
+          "distance": 0.33497756719589233
         }
       ]
     },
@@ -733,12 +734,12 @@
       "expected": [
         "StorageManager",
         "PlayerRef",
-        "PlayerDataComponent"
+        "PlayerStorage"
       ],
       "source": "api",
-      "recall@5": 0.0,
-      "recall@10": 0.0,
-      "mrr": 0.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
       "top_results": [
         {
           "fqn": "com.hypixel.hytale.server.core.universe.playerdata.PlayerStorage",
@@ -756,14 +757,14 @@
           "distance": 0.30661940574645996
         },
         {
-          "fqn": "com.hypixel.hytale.server.core.universe.playerdata.DiskPlayerStorageProvider",
-          "type": "method",
-          "distance": 0.30777448415756226
-        },
-        {
           "fqn": "com.hypixel.hytale.server.core.universe.playerdata.PlayerStorage",
           "type": "method",
           "distance": 0.30975764989852905
+        },
+        {
+          "fqn": "com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData",
+          "type": "method",
+          "distance": 0.31618261337280273
         }
       ]
     },
@@ -888,13 +889,13 @@
       "question": "cosmetics system",
       "expected": [
         "CosmeticsModule",
-        "CosmeticSlot",
-        "CosmeticsComponent"
+        "CosmeticType",
+        "CosmeticRegistry"
       ],
       "source": "api",
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "mrr": 0.2,
+      "mrr": 1.0,
       "top_results": [
         {
           "fqn": "com.hypixel.hytale.server.core.cosmetics.CosmeticRegistry",
@@ -926,14 +927,13 @@
     {
       "question": "prefab system",
       "expected": [
-        "PrefabManager",
-        "PrefabModule",
-        "Prefab"
+        "PrefabListAsset",
+        "PrefabPathSystems"
       ],
       "source": "api",
-      "recall@5": 0.0,
-      "recall@10": 0.0,
-      "mrr": 0.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 0.5,
       "top_results": [
         {
           "fqn": "com.hypixel.hytale.builtin.path.PrefabPathSystems.PrefabPlaceEntityEventSystem",
@@ -965,14 +965,14 @@
     {
       "question": "telemetry and metrics",
       "expected": [
-        "TelemetryManager",
-        "MetricsModule",
+        "TelemetryService",
+        "MetricsRegistry",
         "TelemetryModule"
       ],
       "source": "api",
       "recall@5": 1.0,
       "recall@10": 1.0,
-      "mrr": 0.2,
+      "mrr": 0.3333333333333333,
       "top_results": [
         {
           "fqn": "com.hypixel.hytale.component.metric.SystemMetricData",
@@ -995,9 +995,9 @@
           "distance": 0.34346842765808105
         },
         {
-          "fqn": "com.hypixel.hytale.server.core.telemetry.TelemetryModule",
+          "fqn": "com.hypixel.hytale.metrics.metric.Metric",
           "type": "method",
-          "distance": 0.3459833860397339
+          "distance": 0.3464847803115845
         }
       ]
     },
@@ -1151,13 +1151,14 @@
       "question": "stat modifiers and entity stats",
       "expected": [
         "StatModifiersManager",
-        "LivingEntity",
-        "StatsComponent"
+        "CachedStatsComponent",
+        "EntityStatsModule",
+        "EntityStatValue"
       ],
       "source": "api",
-      "recall@5": 0.0,
-      "recall@10": 0.0,
-      "mrr": 0.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 0.5,
       "top_results": [
         {
           "fqn": "com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier",

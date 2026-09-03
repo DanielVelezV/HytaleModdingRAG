@@ -29,7 +29,7 @@ def search_repos(
             ["gh", "search", "repos", q,
              "--language=Java", "--sort=stars", "--limit=30",
              "--json", "fullName,stargazersCount,updatedAt,description"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
         if proc.returncode != 0:
             continue
@@ -55,7 +55,7 @@ def clone_repo(full_name: str) -> Path | None:
 
     proc = subprocess.run(
         ["gh", "repo", "clone", full_name, str(repo_dir), "--", "--depth=1"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if proc.returncode != 0:
         return None
