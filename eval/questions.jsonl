@@ -1,0 +1,30 @@
+{"question": "how to register a command", "expected_fqns": ["AbstractCommand", "CommandRegistration", "CommandRegistry"], "source": "api"}
+{"question": "BlockType class", "expected_fqns": ["BlockTypeModule", "BlockType"], "source": "api"}
+{"question": "event listener registration", "expected_fqns": ["EventBus", "EventRegistry", "IEventBus"], "source": "api"}
+{"question": "create a custom plugin", "expected_fqns": ["JavaPlugin", "PluginBase", "PluginManager"], "source": "api"}
+{"question": "entity spawning", "expected_fqns": ["LivingEntity", "EntityUtils", "EntityModule"], "source": "api"}
+{"question": "player permissions", "expected_fqns": ["PermissionHolder", "PermissionQuery", "PermissionsModule"], "source": "api"}
+{"question": "inventory management", "expected_fqns": ["InventoryComponent", "ItemStack", "ActiveSlotInventoryComponent"], "source": "api"}
+{"question": "command arguments parsing", "expected_fqns": ["CommandContext", "ParserContext", "Tokenizer"], "source": "api"}
+{"question": "how to handle cancellable events", "expected_fqns": ["ICancellable", "IBaseEvent", "EventPriority"], "source": "api"}
+{"question": "server configuration", "expected_fqns": ["ModConfig", "ServerWorldMapConfig", "BackupConfig"], "source": "api"}
+{"question": "async event handling", "expected_fqns": ["IAsyncEvent", "AsyncEventBusRegistry", "IEventDispatcher"], "source": "api"}
+{"question": "world generation", "expected_fqns": ["Universe", "WorldMapConfig", "WorldWorldMapConfig"], "source": "api"}
+{"question": "item stack operations", "expected_fqns": ["ItemStack", "ItemContext", "MaterialQuantity"], "source": "api"}
+{"question": "entity damage system", "expected_fqns": ["Damage", "LivingEntity", "DamageCalculator", "DamageSystems"], "source": "api"}
+{"question": "NPC behavior and AI", "expected_fqns": ["NPCEntity", "NPCSystems", "Blackboard", "BlackboardSystems"], "source": "api"}
+{"question": "plugin lifecycle management", "expected_fqns": ["PluginState", "PluginManager", "JavaPluginInit"], "source": "api"}
+{"question": "command sender and context", "expected_fqns": ["CommandSender", "CommandContext", "CommandOwner"], "source": "api"}
+{"question": "registry pattern", "expected_fqns": ["Registry", "Registration", "AssetRegistry"], "source": "api"}
+{"question": "player data storage", "expected_fqns": ["StorageManager", "PlayerRef", "PlayerStorage"], "source": "api"}
+{"question": "interaction system", "expected_fqns": ["InteractionManager", "InteractionChain", "InteractionContext"], "source": "api"}
+{"question": "command autocompletion", "expected_fqns": ["CommandCompletion", "CommandTreeBuilder", "AbbreviationMap"], "source": "api"}
+{"question": "entity components", "expected_fqns": ["UUIDComponent", "ActiveSlotInventoryComponent", "InventoryComponent"], "source": "api"}
+{"question": "cosmetics system", "expected_fqns": ["CosmeticsModule", "CosmeticType", "CosmeticRegistry"], "source": "api"}
+{"question": "prefab system", "expected_fqns": ["PrefabListAsset", "PrefabPathSystems"], "source": "api"}
+{"question": "telemetry and metrics", "expected_fqns": ["TelemetryService", "MetricsRegistry", "TelemetryModule"], "source": "api"}
+{"question": "plugin class loading", "expected_fqns": ["PluginClassLoader", "PluginType"], "source": "api"}
+{"question": "how to create a mod for hytale", "expected_fqns": ["JavaPlugin", "PluginManager"], "source": "any"}
+{"question": "best practices for hytale server plugins", "expected_fqns": [], "source": "guides"}
+{"question": "setting up a hytale development environment", "expected_fqns": [], "source": "guides"}
+{"question": "stat modifiers and entity stats", "expected_fqns": ["StatModifiersManager", "CachedStatsComponent", "EntityStatsModule", "EntityStatValue"], "source": "api"}
