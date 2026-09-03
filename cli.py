@@ -1,7 +1,6 @@
-"""Hytale Modding RAG — interactive CLI."""
+"""Hytale Modding RAG — CLI."""
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -17,8 +16,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, DownloadColumn, TransferSpeedColumn
 from rich.table import Table
-from rich.text import Text
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm
 
 from config import DATA_DIR, GITHUB_DATA_REPO, BASE_DIR
 
@@ -43,41 +41,45 @@ BANNER = r"""[bold cyan]
 [dim]  RAG — AI-powered knowledge base for Hytale server modding[/dim]
 """
 
-SHELL_COMMANDS = {
-    "setup": "Download pre-built RAG data",
-    "update": "Check for newer data",
-    "serve": "Start MCP server",
-    "dashboard": "Start web dashboard",
-    "create-mod": "Scaffold a new mod project",
-    "status": "Show index status",
-    "admin": "Admin commands (index-jar, publish, ...)",
-    "help": "Show available commands",
-    "clear": "Clear the screen",
-    "exit": "Exit the shell",
-}
+MCP_COMMAND = f'claude mcp add hytale-docs --scope user -- python "{BASE_DIR / "server.py"}"'
 
 
 @app.callback()
 def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
-        _interactive_shell()
+        _run_main()
 
 
-def _print_status_summary():
-    version = _load_version()
+def _run_main():
+    os.system("cls" if os.name == "nt" else "clear")
+    rprint(BANNER)
+
     has_data = DATA_DIR.exists() and any(DATA_DIR.iterdir())
 
     if not has_data:
         rprint(Panel(
-            "[yellow]No data found.[/yellow] Run [bold green]hytale-rag setup[/bold green] to download the pre-built index.",
-            title="[bold]Status[/bold]",
+            "[yellow]No RAG data found.[/yellow]\n"
+            "The pre-built index (~2.3 GB) needs to be downloaded.",
+            title="[bold]First-time Setup[/bold]",
             border_style="yellow",
         ))
-        return
+        rprint()
 
-    lines = []
+        if Confirm.ask("Download the RAG data now?", default=True):
+            _do_setup()
+        else:
+            rprint("\n[dim]Run [bold]hytale-rag setup[/bold] when you're ready.[/dim]")
+            return
+    else:
+        _print_index_summary()
+
+    rprint()
+    _show_mcp_usage()
+
+
+def _print_index_summary():
+    version = _load_version()
     tag = version.get("tag", "local build") if version else "local build"
-    lines.append(f"[bold]Data version:[/bold] {tag}")
 
     try:
         from indexer import get_status
@@ -98,11 +100,24 @@ def _print_status_summary():
 
         rprint(Panel.fit(
             table,
-            title=f"[bold]Index: {tag}[/bold]",
+            title=f"[bold green]Index: {tag}[/bold green]",
             border_style="green",
         ))
     except Exception:
-        rprint(Panel(f"Data version: {tag}", title="[bold]Status[/bold]", border_style="green"))
+        rprint(Panel(f"[green]Data installed[/green] — version {tag}", border_style="green"))
+
+
+def _show_mcp_usage():
+    rprint(Panel(
+        f"[bold]Register as MCP server in Claude Code:[/bold]\n\n"
+        f"  [cyan]{MCP_COMMAND}[/cyan]\n\n"
+        f"Then ask Claude anything about Hytale server modding!\n\n"
+        f"[dim]Other commands:[/dim]\n"
+        f"  [bold]hytale-rag update[/bold]      Check for newer data\n"
+        f"  [bold]hytale-rag dashboard[/bold]    Browse the index in your browser",
+        title="[bold cyan]Usage[/bold cyan]",
+        border_style="cyan",
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -114,12 +129,16 @@ def setup(
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing data"),
 ):
     """Download pre-built RAG data from GitHub Releases."""
-    rprint(BANNER)
-
     if DATA_DIR.exists() and any(DATA_DIR.iterdir()) and not force:
         rprint("[yellow]Data already exists.[/yellow] Use [bold]--force[/bold] to overwrite, or [bold]hytale-rag update[/bold] to check for updates.")
         return
 
+    _do_setup()
+    rprint()
+    _show_mcp_usage()
+
+
+def _do_setup():
     with console.status("[bold cyan]Checking latest release...[/bold cyan]"):
         release = _get_latest_release()
 
@@ -137,13 +156,11 @@ def setup(
     total_size = sum(a["size"] for a in assets)
     rprint(Panel(
         f"[bold]Version:[/bold] {tag}\n"
-        f"[bold]Assets:[/bold]  {len(assets)} files ({total_size / 1024 / 1024:.0f} MB)\n",
+        f"[bold]Assets:[/bold]  {len(assets)} files ({total_size / 1024 / 1024:.0f} MB)",
         title="[bold cyan]Hytale RAG Data[/bold cyan]",
         border_style="cyan",
     ))
-
-    if not Confirm.ask(f"Download {total_size / 1024 / 1024:.0f} MB of data?", default=True):
-        return
+    rprint()
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -153,15 +170,7 @@ def setup(
     _save_version(tag, release)
 
     rprint()
-    rprint(Panel(
-        f"[green]Data version {tag} installed successfully![/green]\n\n"
-        f"[bold]Next steps:[/bold]\n"
-        f"  [dim]1.[/dim] Register the MCP server:\n"
-        f"     [cyan]claude mcp add hytale-docs --scope user -- python \"{BASE_DIR / 'server.py'}\"[/cyan]\n"
-        f"  [dim]2.[/dim] Start asking Claude about Hytale modding!",
-        title="[bold green]Setup Complete[/bold green]",
-        border_style="green",
-    ))
+    rprint(f"[bold green]Data version {tag} installed successfully![/bold green]")
 
 
 # ---------------------------------------------------------------------------
@@ -217,31 +226,6 @@ def update():
 
 
 # ---------------------------------------------------------------------------
-#  serve
-# ---------------------------------------------------------------------------
-
-@app.command()
-def serve():
-    """Start the MCP server."""
-    if not DATA_DIR.exists() or not any(DATA_DIR.iterdir()):
-        rprint("[red]No data found.[/red] Run [bold]hytale-rag setup[/bold] first.")
-        raise typer.Exit(1)
-
-    rprint(Panel(
-        "[bold]MCP server starting...[/bold]\n"
-        "[dim]Press Ctrl+C to stop[/dim]",
-        title="[bold cyan]Hytale Modding RAG[/bold cyan]",
-        border_style="cyan",
-    ))
-
-    server_py = BASE_DIR / "server.py"
-    try:
-        subprocess.run([sys.executable, str(server_py)], check=True)
-    except KeyboardInterrupt:
-        rprint("\n[dim]Server stopped.[/dim]")
-
-
-# ---------------------------------------------------------------------------
 #  dashboard
 # ---------------------------------------------------------------------------
 
@@ -263,103 +247,6 @@ def dashboard(
         subprocess.run([sys.executable, str(BASE_DIR / "dashboard.py")], env=env, check=True)
     except KeyboardInterrupt:
         rprint("\n[dim]Dashboard stopped.[/dim]")
-
-
-# ---------------------------------------------------------------------------
-#  create-mod
-# ---------------------------------------------------------------------------
-
-@app.command("create-mod")
-def create_mod_cmd(
-    name: str = typer.Argument(None, help="Mod name in PascalCase"),
-    output: str = typer.Option(None, "--output", "-o", help="Output directory"),
-    group: str = typer.Option("", "--group", "-g", help="Java package group"),
-    author: str = typer.Option("", "--author", "-a", help="Author name"),
-    hot_reload: bool = typer.Option(False, "--hot-reload", help="Enable hot reload (requires JBR 25)"),
-):
-    """Scaffold a new Hytale mod project."""
-    rprint()
-
-    if not name:
-        name = Prompt.ask("[bold]Mod name[/bold] [dim](PascalCase)[/dim]")
-    if not output:
-        output = Prompt.ask("[bold]Output directory[/bold]", default=os.getcwd())
-    if not author:
-        author = Prompt.ask("[bold]Author name[/bold]", default="")
-    if not hot_reload:
-        hot_reload = Confirm.ask("[bold]Enable hot reload?[/bold] [dim](requires JBR 25)[/dim]", default=False)
-
-    with console.status(f"[bold cyan]Creating {name}...[/bold cyan]"):
-        from server import create_mod
-        result = create_mod(name, output, group=group, author=author, hot_reload=hot_reload)
-
-    if result.startswith("Error"):
-        rprint(f"[red]{result}[/red]")
-        raise typer.Exit(1)
-
-    out_path = Path(output) / name
-
-    jdk_note = "[yellow]JetBrains Runtime (JBR) 25[/yellow]" if hot_reload else "Java 25"
-    hot_note = "\n  [dim]4.[/dim] Edit code, [bold]Ctrl+F9[/bold] to hot reload" if hot_reload else ""
-
-    rprint(Panel(
-        f"[bold green]Mod \"{name}\" created![/bold green]\n\n"
-        f"[bold]Location:[/bold] {out_path}\n"
-        f"[bold]Package:[/bold]  {group or f'com.{name.lower()}'}\n"
-        f"[bold]JDK:[/bold]      {jdk_note}\n\n"
-        f"[bold]Quick start:[/bold]\n"
-        f"  [dim]1.[/dim] Run [cyan].\\server\\setup.ps1[/cyan] to download the Hytale server\n"
-        f"  [dim]2.[/dim] Open in IntelliJ, set Gradle JDK to {jdk_note}\n"
-        f"  [dim]3.[/dim] Select [bold]\"Hytale Server\"[/bold] run config and hit Run"
-        f"{hot_note}",
-        title=f"[bold green]{name}[/bold green]",
-        border_style="green",
-    ))
-
-
-# ---------------------------------------------------------------------------
-#  status
-# ---------------------------------------------------------------------------
-
-@app.command()
-def status():
-    """Show index status and data version."""
-    version = _load_version()
-    has_data = DATA_DIR.exists() and any(DATA_DIR.iterdir())
-
-    if not has_data:
-        rprint("[yellow]No data found.[/yellow] Run [bold]hytale-rag setup[/bold] first.")
-        return
-
-    tag = version.get("tag", "local build") if version else "local build"
-
-    try:
-        from indexer import get_status
-        st = get_status()
-    except Exception:
-        rprint(f"[bold]Data version:[/bold] {tag}")
-        return
-
-    table = Table(title=f"Index Status — {tag}", border_style="cyan")
-    table.add_column("Source", style="bold")
-    table.add_column("Chunks", justify="right")
-    table.add_column("Details")
-    table.add_column("Indexed At", style="dim")
-
-    api = st.get("api", {})
-    if api.get("indexed"):
-        table.add_row("Java API", f"{api.get('chunks', 0):,}", f"jar: {api.get('jar', '?')}", api.get("indexed_at", "?")[:19])
-
-    guides = st.get("guides", {})
-    if guides.get("indexed"):
-        table.add_row("Guides", f"{guides.get('chunks', 0):,}", "hytalemodding.dev", guides.get("indexed_at", "?")[:19])
-
-    mods = st.get("mods", {})
-    if mods.get("indexed"):
-        table.add_row("Mods", f"{mods.get('chunks', 0):,}", f"{mods.get('repo_count', '?')} repos", mods.get("indexed_at", "?")[:19])
-
-    rprint()
-    rprint(table)
 
 
 # ---------------------------------------------------------------------------
@@ -706,83 +593,6 @@ def _load_version():
         except (json.JSONDecodeError, OSError):
             pass
     return None
-
-
-def _clear_screen():
-    os.system("cls" if os.name == "nt" else "clear")
-
-
-def _interactive_shell():
-    _clear_screen()
-    rprint(BANNER)
-    _print_status_summary()
-    rprint()
-
-    prompt_fn = None
-    try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.completion import WordCompleter
-        from prompt_toolkit.history import InMemoryHistory
-        from prompt_toolkit.formatted_text import HTML
-
-        commands = list(SHELL_COMMANDS.keys())
-        admin_commands = ["index-jar", "scrape-guides", "index-mods", "publish", "snapshot", "eval"]
-        all_completions = commands + [f"admin {c}" for c in admin_commands]
-        completer = WordCompleter(all_completions, ignore_case=True)
-
-        session = PromptSession(
-            history=InMemoryHistory(),
-            completer=completer,
-        )
-        prompt_fn = lambda: session.prompt(
-            HTML("<ansibrightcyan><b>hytale-rag</b></ansibrightcyan> <ansigray>></ansigray> "),
-        )
-    except Exception:
-        prompt_fn = lambda: input("hytale-rag > ")
-
-    while True:
-        try:
-            user_input = prompt_fn().strip()
-        except (KeyboardInterrupt, EOFError):
-            rprint("\n[dim]Goodbye![/dim]")
-            break
-
-        if not user_input:
-            continue
-
-        if user_input in ("exit", "quit", "q"):
-            rprint("[dim]Goodbye![/dim]")
-            break
-
-        if user_input == "clear":
-            _clear_screen()
-            rprint(BANNER)
-            continue
-
-        if user_input == "help":
-            table = Table(title="Commands", border_style="cyan", show_edge=False)
-            table.add_column("Command", style="bold cyan")
-            table.add_column("Description")
-            for cmd, desc in SHELL_COMMANDS.items():
-                table.add_row(cmd, desc)
-            rprint()
-            rprint(table)
-            rprint()
-            continue
-
-        try:
-            parts = shlex.split(user_input)
-        except ValueError:
-            parts = user_input.split()
-
-        try:
-            app(parts, standalone_mode=False)
-        except SystemExit:
-            pass
-        except Exception as e:
-            rprint(f"[red]Error: {e}[/red]")
-
-        rprint()
 
 
 if __name__ == "__main__":
