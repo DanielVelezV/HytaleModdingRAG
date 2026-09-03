@@ -1,30 +1,100 @@
+{"question": "how does the ECS component system work", "expected_fqns": ["Component", "ComponentRegistry", "ResourceType"], "source": "api"}
+{"question": "registering a new system module", "expected_fqns": ["Module", "ISystem", "SystemMetricData"], "source": "api"}
+{"question": "component registry lookup", "expected_fqns": ["ComponentRegistry", "Registry", "IRegistry"], "source": "api"}
+{"question": "archetype entity storage", "expected_fqns": ["Archetype", "ArchetypeTickingSystem"], "source": "api"}
+{"question": "resource types and registration", "expected_fqns": ["ResourceType", "Resource", "Registration"], "source": "api"}
+{"question": "event system architecture", "expected_fqns": ["EventSystem", "EventBus", "EventRegistry"], "source": "api"}
+{"question": "module initialization lifecycle", "expected_fqns": ["Module", "InitSystem"], "source": "api"}
+{"question": "ticking systems and update loop", "expected_fqns": ["ArchetypeTickingSystem", "BehaviourTickSystem"], "source": "api"}
+{"question": "entity component data access", "expected_fqns": ["Component", "ComponentRegistry"], "source": "api"}
+{"question": "system metric collection", "expected_fqns": ["SystemMetricData", "TelemetryDataCollector"], "source": "api"}
 {"question": "how to register a command", "expected_fqns": ["AbstractCommand", "CommandRegistration", "CommandRegistry"], "source": "api"}
-{"question": "BlockType class", "expected_fqns": ["BlockTypeModule", "BlockType"], "source": "api"}
-{"question": "event listener registration", "expected_fqns": ["EventBus", "EventRegistry", "IEventBus"], "source": "api"}
-{"question": "create a custom plugin", "expected_fqns": ["JavaPlugin", "PluginBase", "PluginManager"], "source": "api"}
-{"question": "entity spawning", "expected_fqns": ["LivingEntity", "EntityUtils", "EntityModule"], "source": "api"}
-{"question": "player permissions", "expected_fqns": ["PermissionHolder", "PermissionQuery", "PermissionsModule"], "source": "api"}
-{"question": "inventory management", "expected_fqns": ["InventoryComponent", "ItemStack", "ActiveSlotInventoryComponent"], "source": "api"}
-{"question": "command arguments parsing", "expected_fqns": ["CommandContext", "ParserContext", "Tokenizer"], "source": "api"}
-{"question": "how to handle cancellable events", "expected_fqns": ["ICancellable", "IBaseEvent", "EventPriority"], "source": "api"}
-{"question": "server configuration", "expected_fqns": ["ModConfig", "ServerWorldMapConfig", "BackupConfig"], "source": "api"}
-{"question": "async event handling", "expected_fqns": ["IAsyncEvent", "AsyncEventBusRegistry", "IEventDispatcher"], "source": "api"}
-{"question": "world generation", "expected_fqns": ["Universe", "WorldMapConfig", "WorldWorldMapConfig"], "source": "api"}
-{"question": "item stack operations", "expected_fqns": ["ItemStack", "ItemContext", "MaterialQuantity"], "source": "api"}
-{"question": "entity damage system", "expected_fqns": ["Damage", "LivingEntity", "DamageCalculator", "DamageSystems"], "source": "api"}
-{"question": "NPC behavior and AI", "expected_fqns": ["NPCEntity", "NPCSystems", "Blackboard", "BlackboardSystems"], "source": "api"}
-{"question": "plugin lifecycle management", "expected_fqns": ["PluginState", "PluginManager", "JavaPluginInit"], "source": "api"}
-{"question": "command sender and context", "expected_fqns": ["CommandSender", "CommandContext", "CommandOwner"], "source": "api"}
-{"question": "registry pattern", "expected_fqns": ["Registry", "Registration", "AssetRegistry"], "source": "api"}
-{"question": "player data storage", "expected_fqns": ["StorageManager", "PlayerRef", "PlayerStorage"], "source": "api"}
-{"question": "interaction system", "expected_fqns": ["InteractionManager", "InteractionChain", "InteractionContext"], "source": "api"}
+{"question": "command arguments parsing", "expected_fqns": ["CommandContext", "ArgumentType", "SingleArgumentType"], "source": "api"}
 {"question": "command autocompletion", "expected_fqns": ["CommandCompletion", "CommandTreeBuilder", "AbbreviationMap"], "source": "api"}
-{"question": "entity components", "expected_fqns": ["UUIDComponent", "ActiveSlotInventoryComponent", "InventoryComponent"], "source": "api"}
-{"question": "cosmetics system", "expected_fqns": ["CosmeticsModule", "CosmeticType", "CosmeticRegistry"], "source": "api"}
-{"question": "prefab system", "expected_fqns": ["PrefabListAsset", "PrefabPathSystems"], "source": "api"}
-{"question": "telemetry and metrics", "expected_fqns": ["TelemetryService", "MetricsRegistry", "TelemetryModule"], "source": "api"}
-{"question": "plugin class loading", "expected_fqns": ["PluginClassLoader", "PluginType"], "source": "api"}
-{"question": "how to create a mod for hytale", "expected_fqns": ["JavaPlugin", "PluginManager"], "source": "any"}
-{"question": "best practices for hytale server plugins", "expected_fqns": [], "source": "guides"}
-{"question": "setting up a hytale development environment", "expected_fqns": [], "source": "guides"}
-{"question": "stat modifiers and entity stats", "expected_fqns": ["StatModifiersManager", "CachedStatsComponent", "EntityStatsModule", "EntityStatValue"], "source": "api"}
+{"question": "command sender and context", "expected_fqns": ["CommandSender", "CommandContext", "CommandOwner"], "source": "api"}
+{"question": "how to define command arguments", "expected_fqns": ["ArgumentType", "SingleArgumentType", "BooleanFlagArgumentType"], "source": "api"}
+{"question": "async commands", "expected_fqns": ["AbstractAsyncCommand", "AbstractAsyncPlayerCommand"], "source": "api"}
+{"question": "debug commands", "expected_fqns": ["DebugCommand", "Debug"], "source": "api"}
+{"question": "command collection pattern", "expected_fqns": ["AbstractCommandCollection", "CommandManager"], "source": "api"}
+{"question": "command permission checking", "expected_fqns": ["PermissionHolder", "PermissionQuery", "AbstractCommand"], "source": "api"}
+{"question": "how to use AbstractCommand", "expected_fqns": ["AbstractCommand", "CommandContext"], "source": "api"}
+{"question": "world map management", "expected_fqns": ["WorldMapManager", "IWorldMap", "WorldMap"], "source": "api"}
+{"question": "universe and world structure", "expected_fqns": ["Universe", "World"], "source": "api"}
+{"question": "chunk loading and management", "expected_fqns": ["ChunkGenerator", "MapChunk", "ChunkFlag"], "source": "api"}
+{"question": "biome configuration", "expected_fqns": ["Biome", "BiomeFluids", "BiomeFluidContent"], "source": "api"}
+{"question": "world events and global triggers", "expected_fqns": ["ActionSignalWorldEvent", "AddWorldEvent", "AllWorldsLoadedEvent"], "source": "api"}
+{"question": "server world map config", "expected_fqns": ["ServerWorldMapConfig", "WorldMapManager"], "source": "api"}
+{"question": "world generation pipeline", "expected_fqns": ["ChunkGenerator", "WorldMapManager"], "source": "api"}
+{"question": "adding a player to a world", "expected_fqns": ["AddPlayerToWorldEvent", "Player", "World"], "source": "api"}
+{"question": "world persistence and saving", "expected_fqns": ["BufferChunkSaver", "ChunkLoaderSaverSetupSystem"], "source": "api"}
+{"question": "fluid mechanics and water in worlds", "expected_fqns": ["FluidState", "BiomeFluids", "DefaultFluidTicker"], "source": "api"}
+{"question": "open a window or GUI for a player", "expected_fqns": ["Window", "WindowManager", "WindowType"], "source": "api"}
+{"question": "bench window crafting interface", "expected_fqns": ["BenchWindow", "BenchRecipeRegistry"], "source": "api"}
+{"question": "block window interaction", "expected_fqns": ["BlockWindow", "Window"], "source": "api"}
+{"question": "custom UI pages", "expected_fqns": ["BasicCustomUIPage", "CustomPage", "Page"], "source": "api"}
+{"question": "shop page for trading", "expected_fqns": ["ShopPage", "BarterPage"], "source": "api"}
+{"question": "dialog page for NPCs", "expected_fqns": ["DialogPage", "Page"], "source": "api"}
+{"question": "UI button handling", "expected_fqns": ["UIButton", "PageAction"], "source": "api"}
+{"question": "close window event", "expected_fqns": ["CloseWindow", "Window"], "source": "api"}
+{"question": "window types and categories", "expected_fqns": ["WindowType", "Window", "WindowManager"], "source": "api"}
+{"question": "respawn UI and menus", "expected_fqns": ["ClearRespawnUI", "RespawnEvent"], "source": "api"}
+{"question": "player data storage", "expected_fqns": ["PlayerStorage", "PlayerRef", "PlayerWorldData"], "source": "api"}
+{"question": "player backup and restore", "expected_fqns": ["BackupConfig", "BackupTask", "PlayerStorage"], "source": "api"}
+{"question": "saving and loading chunks", "expected_fqns": ["BufferChunkSaver", "ChunkLoaderSaverSetupSystem"], "source": "api"}
+{"question": "block data persistence", "expected_fqns": ["BlockData", "BlockModule"], "source": "api"}
+{"question": "server configuration storage", "expected_fqns": ["ServerWorldMapConfig", "BackupConfig", "LiveConfigModule"], "source": "api"}
+{"question": "live config and hot reload", "expected_fqns": ["LiveConfigModule"], "source": "api"}
+{"question": "data store access patterns", "expected_fqns": ["DataStore", "PlayerStorage"], "source": "api"}
+{"question": "serialization and deserialization", "expected_fqns": ["NetworkSerializer", "NetworkSerializers", "SerializedEntry"], "source": "api"}
+{"question": "persistence component for entities", "expected_fqns": ["ApplyRandomSkinPersistedComponent", "BlockComponentsToSave"], "source": "api"}
+{"question": "authentication and login data", "expected_fqns": ["AuthFlow", "AuthConfig", "AuthCommand"], "source": "api"}
+{"question": "JSON asset loading", "expected_fqns": ["JsonAsset", "AssetCodec", "AssetLoader"], "source": "api"}
+{"question": "asset pack configuration", "expected_fqns": ["AssetPackSaveBrowser", "AssetPackSaveBrowserConfig"], "source": "api"}
+{"question": "asset registry and lookup", "expected_fqns": ["AssetRegistry", "Asset", "AssetRef"], "source": "api"}
+{"question": "codec system for data formats", "expected_fqns": ["Codec", "MapCodec", "AssetCodec"], "source": "api"}
+{"question": "resource loading pipeline", "expected_fqns": ["AssetLoader", "AssetLoadResult"], "source": "api"}
+{"question": "raw asset management", "expected_fqns": ["RawAsset", "Asset"], "source": "api"}
+{"question": "asset map and references", "expected_fqns": ["AssetMap", "AssetRef"], "source": "api"}
+{"question": "packet IO and network codecs", "expected_fqns": ["PacketIO", "PacketHandler", "NetworkSerializer"], "source": "api"}
+{"question": "block type asset definition", "expected_fqns": ["BlockType", "BlockData"], "source": "api"}
+{"question": "item type asset configuration", "expected_fqns": ["ItemType", "ItemComponent", "ItemStack"], "source": "api"}
+{"question": "cave generation algorithm", "expected_fqns": ["CaveGenerator", "CaveNode", "CaveType"], "source": "api"}
+{"question": "noise generation for world gen", "expected_fqns": ["CellNoise", "BranchNoise", "AmplitudeNoiseProperty"], "source": "api"}
+{"question": "biome terrain density", "expected_fqns": ["TerrainAsset", "TerrainDensity", "DensityTerrainAsset"], "source": "api"}
+{"question": "spawn controller and beacons", "expected_fqns": ["SpawnController", "BeaconSpawnController", "SpawningPlugin"], "source": "api"}
+{"question": "prefab system and placement", "expected_fqns": ["PrefabListAsset", "PrefabPathSystems", "PrefabEditSession"], "source": "api"}
+{"question": "ore and resource generation", "expected_fqns": ["CaveGenerator", "DensityTerrainAsset"], "source": "api"}
+{"question": "chunk generation pipeline", "expected_fqns": ["ChunkGenerator", "WorldMapManager"], "source": "api"}
+{"question": "structure generation and prefabs", "expected_fqns": ["PrefabListAsset", "UniquePrefabGenerator"], "source": "api"}
+{"question": "spawn job scheduling", "expected_fqns": ["SpawnJobSystem", "SpawnController", "SpawnJob"], "source": "api"}
+{"question": "connected blocks rule system", "expected_fqns": ["PatternedConnectedBlockRuleSet", "ConnectedBlockRuleSet", "ConnectedBlocksModule"], "source": "api"}
+{"question": "NPC behavior and AI", "expected_fqns": ["NPCEntity", "NPCSystems", "Blackboard", "BlackboardSystems"], "source": "api"}
+{"question": "NPC sensor system", "expected_fqns": ["SensorWeather", "BuilderSensorWeather"], "source": "api"}
+{"question": "blackboard data for NPC decisions", "expected_fqns": ["Blackboard", "BlackboardSystems"], "source": "api"}
+{"question": "NPC flock and group behavior", "expected_fqns": ["Flock", "NPCFlockCommand"], "source": "api"}
+{"question": "NPC role assignment", "expected_fqns": ["Role", "NPCEntity"], "source": "api"}
+{"question": "NPC combat and damage received", "expected_fqns": ["NPCDamageSystems", "DamageSystems", "AngledDamage"], "source": "api"}
+{"question": "NPC builder definitions", "expected_fqns": ["Builder", "NPCEntity"], "source": "api"}
+{"question": "how to implement NPC behaviors", "expected_fqns": ["NPCEntity", "NPCSystems", "Blackboard"], "source": "any"}
+{"question": "NPC meta documentation", "expected_fqns": [], "source": "guides"}
+{"question": "how NPC builders and roles work", "expected_fqns": [], "source": "guides"}
+{"question": "entity spawning and lifecycle", "expected_fqns": ["LivingEntity", "EntityModule", "SpawningPlugin"], "source": "api"}
+{"question": "entity damage system", "expected_fqns": ["Damage", "LivingEntity", "DamageCalculator", "DamageSystems"], "source": "api"}
+{"question": "entity components and data", "expected_fqns": ["Component", "InventoryComponent", "ActiveSlotInventoryComponent"], "source": "api"}
+{"question": "stat modifiers and entity stats", "expected_fqns": ["Modifier", "CachedStatsComponent", "EntityStatValue"], "source": "api"}
+{"question": "entity effects and abilities", "expected_fqns": ["ActiveEntityEffect", "ActionApplyEntityEffect", "AbilityEffects"], "source": "api"}
+{"question": "entity living and health", "expected_fqns": ["LivingEntity", "ActionSetHealthRegen"], "source": "api"}
+{"question": "entity position and movement", "expected_fqns": ["ActionAdjustPosition", "ActionMakePath", "AbsoluteMovement"], "source": "api"}
+{"question": "combat abilities and actions", "expected_fqns": ["AbilityCombatAction", "ActionCombatAbility", "ActionAttack"], "source": "api"}
+{"question": "entity uuid and identity", "expected_fqns": ["UUIDComponent", "NetworkId"], "source": "api"}
+{"question": "entity tracking and network sync", "expected_fqns": ["AnimationEntityTrackerUpdate", "AssignNetworkIdToProps", "NetworkId"], "source": "api"}
+{"question": "playing sounds and audio", "expected_fqns": ["SoundEvent", "AudioState", "ActionPlaySound"], "source": "api"}
+{"question": "ambient sound effects", "expected_fqns": ["AmbienceFX", "AmbienceFXSound", "AmbienceFXSoundEffect"], "source": "api"}
+{"question": "music system and playback", "expected_fqns": ["ItemMusic", "MusicSync", "MusicMarker"], "source": "api"}
+{"question": "audio plugin and module", "expected_fqns": ["AudioPlugin", "AudioState", "AudioUtil"], "source": "api"}
+{"question": "sound event triggers", "expected_fqns": ["SoundEvent", "SoundEffect", "SoundSet"], "source": "api"}
+{"question": "block sounds and effects", "expected_fqns": ["AmbienceFXBlockSoundSet", "SoundSet"], "source": "api"}
+{"question": "encounter music start and stop", "expected_fqns": ["ActionStartEncounterMusic", "ActionStopEncounterMusic"], "source": "api"}
+{"question": "audio state management", "expected_fqns": ["AudioState", "AudioPlugin"], "source": "api"}
+{"question": "entity animation with sounds", "expected_fqns": ["Animation", "ActionPlayAnimation", "ActionPlaySound"], "source": "api"}
+{"question": "sound utility functions", "expected_fqns": ["SoundUtil", "AudioUtil"], "source": "api"}
