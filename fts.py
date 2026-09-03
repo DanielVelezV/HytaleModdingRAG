@@ -17,6 +17,7 @@ _STOPWORDS = frozenset({
 })
 
 _CAMEL_RE = re.compile(r"[A-Z][a-z]+|[A-Z]+(?=[A-Z]|$)|[a-z]+")
+_IDENT_RE = re.compile(r'[A-Z]|[._]')
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -134,8 +135,10 @@ def hybrid_search(
     dense_results: list[dict],
     n_results: int = 10,
     rrf_k: int = 60,
+    kw_weight: float = 0.3,
 ) -> list[dict]:
-    kw_results = keyword_search(collection_name, query, n_results=n_results * 3)
+    has_identifier = any(_IDENT_RE.search(t) for t in query.split())
+    kw_results = keyword_search(collection_name, query, n_results=n_results * 3) if has_identifier else []
 
     dense_ids = {r["id"]: rank for rank, r in enumerate(dense_results)}
     kw_ids = {r["id"]: rank for rank, r in enumerate(kw_results)}
@@ -147,7 +150,7 @@ def hybrid_search(
         if doc_id in dense_ids:
             score += 1.0 / (rrf_k + dense_ids[doc_id])
         if doc_id in kw_ids:
-            score += 1.0 / (rrf_k + kw_ids[doc_id])
+            score += kw_weight / (rrf_k + kw_ids[doc_id])
         scored.append((doc_id, score))
 
     scored.sort(key=lambda x: x[1], reverse=True)

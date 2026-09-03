@@ -334,6 +334,22 @@ def _exact_identifier_boost(query: str, collection_names: list[str], results: li
     return boosted + results
 
 
+def _deduplicate_per_class(results: list[dict], max_per_fqn: int = 2) -> list[dict]:
+    """Keep at most max_per_fqn chunks per FQN without reordering."""
+    fqn_counts: dict[str, int] = {}
+    out = []
+    for r in results:
+        fqn = r.get("metadata", {}).get("fqn", "")
+        if not fqn:
+            out.append(r)
+            continue
+        count = fqn_counts.get(fqn, 0)
+        if count < max_per_fqn:
+            out.append(r)
+            fqn_counts[fqn] = count + 1
+    return out
+
+
 def _enforce_source_slots(results: list[dict], limit: int) -> list[dict]:
     """Guarantee minimum per-source representation: >=2 api, >=2 guides, >=1 mod."""
     SLOTS = {"api": 2, "guide": 2, "mod": 1}
@@ -392,6 +408,7 @@ def search_hytale_docs(query: str, limit: int = 8) -> str:
         query, [API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION], combined,
     )
     combined.sort(key=lambda r: r.get("rrf_score", 0), reverse=True)
+    combined = _deduplicate_per_class(combined)
     all_results = _enforce_source_slots(combined, limit)
 
     if not all_results:
@@ -420,6 +437,7 @@ def search_hytale_api(query: str, limit: int = 8, package: str = "", type: str =
     dense = search(query, API_COLLECTION, n_results=fetch, package_filter=package, type_filter=type)
     results = hybrid_search(query, API_COLLECTION, dense, n_results=fetch)
     results = _exact_identifier_boost(query, [API_COLLECTION], results)
+    results = _deduplicate_per_class(results)
     results = results[:limit]
     if not results:
         return "No API results. Run index_jar first to index a HytaleServer.jar."

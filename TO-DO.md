@@ -20,12 +20,21 @@ Keep it only if pipeline R@5 ≥ dense-only R@5. Record numbers in the F5 table 
 
 ## Checklist
 
-- [ ] **F4. Commit now.** 7 files uncommitted.
-- [ ] **F1. Make keyword search precise.** Try, measure, keep the best:
-  - [ ] a. weighted RRF (keyword weight 0.3, configurable)
-  - [ ] b. AND between tokens, OR fallback when < 3 rows
-  - [ ] c. match only fqn/class_name/method_name columns for natural-language queries
-  - [ ] d. skip keyword fusion entirely when the query has no identifier-like token
-- [ ] **F2. Per-class diversity:** max 2 chunks per fqn in the final list, prefer class_overview.
-- [ ] **F3. Case-insensitive boost** for lowercase tokens ≥5 chars matching a class name. Measure.
-- [ ] **F5. Record** dense vs pipeline R@5 after each change in TO-FIX.md.
+- [x] **F4. Commit now.** Done (commit 9ff28ac).
+- [x] **F1. Make keyword search precise.** Applied F1a + F1d:
+  - [x] a. weighted RRF (keyword weight 0.3) — pipeline R@5 50% → 60%
+  - [ ] ~~b. AND between tokens~~ — not needed
+  - [ ] ~~c. match only name columns~~ — not needed
+  - [x] d. skip keyword fusion when query has no identifier-like token — pipeline R@5 60% → 73.3%
+- [x] **F2. Per-class diversity:** max 2 chunks per fqn, no reordering.
+- [ ] ~~**F3. Case-insensitive boost**~~ — skipped, pipeline already matches dense-only.
+- [x] **F5. Record** — see table below.
+
+## Results
+
+| Change | Dense R@5 | Pipeline R@5 | Pipeline MRR |
+|---|---|---|---|
+| Round 5 baseline | 73.3% | 50.0% | 0.374 |
+| F1a weighted RRF (0.3) + F2 dedup | 73.3% | 60.0% | 0.399 |
+| + F1d skip FTS for NL queries | 73.3% | 63.3% | 0.438 |
+| + dedup sort bug fix | 73.3% | **73.3%** | **0.505** |
