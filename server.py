@@ -1107,14 +1107,20 @@ def create_mod(name: str, output_dir: str, group: str = "", author: str = "", ho
 
     # --- build.gradle ---
     vendor_line = ('\n        vendor = JvmVendorSpec.JETBRAINS') if hot_reload else ''
+    vm_flag = ('\n    jvmArgs "-XX:+AllowEnhancedClassRedefinition"') if hot_reload else ''
     (out / "build.gradle").write_text(f"""\
 plugins {{
     id 'java'
+    id 'application'
     id 'com.gradleup.shadow' version '8.3.0'
 }}
 
 group = '{group}'
 version = '1.0.0'
+
+application {{
+    mainClass = 'com.hypixel.hytale.Main'
+}}
 
 repositories {{
     mavenCentral()
@@ -1131,9 +1137,18 @@ java {{
     }}
 }}
 
+run {{
+    workingDir = file('run')
+    args '--allow-op', '--disable-sentry', '--assets=' + file('server/Assets.zip').absolutePath{vm_flag}
+    standardInput = System.in
+}}
+
 shadowJar {{
     archiveClassifier.set('')
     exclude 'com/hypixel/**'
+    manifest {{
+        attributes.remove('Main-Class')
+    }}
 }}
 
 tasks.named('jar') {{ enabled = false }}
@@ -1264,19 +1279,25 @@ run/
     (idea_dir / "ShadowJar.xml").write_text(
         _run_config("ShadowJar", ["shadowJar"]), encoding="utf-8")
 
-    # --- Hytale Server run config (Application, optional hot reload) ---
-    vm_params = "-XX:+AllowEnhancedClassRedefinition" if hot_reload else ""
+    # --- Hytale Server run config (Gradle 'run' task) ---
     (idea_dir / "Hytale_Server.xml").write_text(f"""\
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Hytale Server" type="Application" factoryName="Application">
-    <option name="MAIN_CLASS_NAME" value="com.hypixel.hytale.Main" />
-    <module name="{lower}.main" />
-    <option name="PROGRAM_PARAMETERS" value="--allow-op --disable-sentry --assets=$PROJECT_DIR$/server/Assets.zip" />
-    <option name="VM_PARAMETERS" value="{vm_params}" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/run" />
-    <method v="2">
-      <option name="Make" enabled="true" />
-    </method>
+  <configuration default="false" name="Hytale Server" type="GradleRunConfiguration" factoryName="Gradle">
+    <ExternalSystemSettings>
+      <option name="executionName" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$" />
+      <option name="externalSystemIdString" value="GRADLE" />
+      <option name="scriptParameters" value="" />
+      <option name="taskDescriptions"><list /></option>
+      <option name="taskNames">
+        <list>
+          <option value="run" />
+        </list>
+      </option>
+      <option name="vmOptions" value="" />
+    </ExternalSystemSettings>
+    <GradleScriptDebugEnabled>true</GradleScriptDebugEnabled>
+    <method v="2" />
   </configuration>
 </component>""", encoding="utf-8")
 
