@@ -42,6 +42,7 @@ Whenever the user asks about Hytale modding, plugins, server-side development, J
 - find_usages: When you need to see where a class or method is actually used across the codebase and mods.
 - list_packages: To explore the API structure or find where a feature lives.
 - get_index_status: Check what's indexed and when.
+- create_mod: Scaffold a complete new Hytale mod project with Gradle, IntelliJ configs, and dev server launcher. Use when the user wants to start a new mod.
 - index_jar: Re-index when the user has a new HytaleServer.jar after a Hytale update. Smart re-indexing skips if the jar hash hasn't changed.
 - scrape_guides: Re-scrape hytalemodding.dev for updated guides.
 - index_github_mods: Refresh GitHub mod examples.
@@ -1062,6 +1063,287 @@ def _format_results(results: list[dict]) -> str:
         parts.append(f"{header}{score_str}\n```\n{r['text']}\n```")
 
     return "\n\n---\n\n".join(parts)
+
+
+@mcp.tool()
+def create_mod(name: str, output_dir: str, group: str = "", author: str = "") -> str:
+    """Scaffold a complete Hytale mod project ready for IntelliJ + Gradle.
+
+    Creates a full project with build.gradle (shadow plugin), manifest.json,
+    main plugin class, IntelliJ run configs, boot-server.ps1, and Gradle wrapper.
+    Open the output directory in IntelliJ and hit Build & Deploy to get started.
+
+    Args:
+        name: Mod name in PascalCase (e.g. "MyFirstMod"). Used for class names, jar, and manifest.
+        output_dir: Absolute path where the project folder will be created (e.g. "C:/Users/Me/Desktop").
+        group: Java package group (default: "com.<name_lowercase>"), e.g. "com.mymod".
+        author: Author name for manifest.json (default: empty).
+    """
+    import shutil
+
+    safe_name = re.sub(r"[^A-Za-z0-9]", "", name)
+    if not safe_name or not safe_name[0].isupper():
+        return "Error: name must be PascalCase starting with uppercase (e.g. 'MyMod')"
+
+    lower = safe_name.lower()
+    if not group:
+        group = f"com.{lower}"
+    pkg_path = group.replace(".", "/")
+
+    out = Path(output_dir) / safe_name
+    if out.exists():
+        return f"Error: directory already exists: {out}"
+
+    src_dir = out / "src" / "main" / "java" / pkg_path
+    res_dir = out / "src" / "main" / "resources"
+    idea_dir = out / ".idea" / "runConfigurations"
+    gradle_dir = out / "gradle" / "wrapper"
+    server_dir = out / "server"
+
+    for d in [src_dir, res_dir, idea_dir, gradle_dir, server_dir]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    # --- build.gradle ---
+    (out / "build.gradle").write_text(f"""\
+plugins {{
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.0'
+}}
+
+group = '{group}'
+version = '1.0.0'
+
+repositories {{
+    mavenCentral()
+}}
+
+def serverJarPath = file('libs/HytaleServer.jar')
+def localServerJar = file('server/HytaleServer.jar')
+
+dependencies {{
+    if (serverJarPath.exists()) {{
+        compileOnly files(serverJarPath)
+    }} else if (localServerJar.exists()) {{
+        compileOnly files(localServerJar)
+    }} else {{
+        compileOnly files('libs/HytaleServer.jar')
+    }}
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}}
+
+java {{
+    toolchain {{
+        languageVersion = JavaLanguageVersion.of(25)
+    }}
+}}
+
+shadowJar {{
+    archiveClassifier.set('')
+    dependencies {{
+        exclude(dependency {{ it.moduleGroup == 'com.hypixel' }})
+    }}
+}}
+
+tasks.named('jar') {{ enabled = false }}
+tasks.named('build') {{ dependsOn shadowJar }}
+
+tasks.register('copyServerJar') {{
+    doLast {{
+        def destJar = file('libs/HytaleServer.jar')
+        if (!destJar.exists()) {{
+            def sources = [file('server/HytaleServer.jar')]
+            for (src in sources) {{
+                if (src.exists()) {{
+                    copy {{ from src; into 'libs' }}
+                    break
+                }}
+            }}
+        }}
+    }}
+}}
+
+tasks.named('compileJava') {{ dependsOn 'copyServerJar' }}
+""", encoding="utf-8")
+
+    # --- settings.gradle ---
+    (out / "settings.gradle").write_text(
+        f"rootProject.name = '{lower}'\n", encoding="utf-8")
+
+    # --- gradle.properties ---
+    (out / "gradle.properties").write_text("""\
+# Set Gradle JDK to Java 25 in IntelliJ:
+#   Settings > Build Tools > Gradle > Gradle JDK
+# Or uncomment and set your JDK path:
+# org.gradle.java.home=C:\\\\Users\\\\You\\\\.jdks\\\\temurin-25
+org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+""", encoding="utf-8")
+
+    # --- manifest.json ---
+    author_entry = f'{{"Name": "{author}"}}' if author else '{"Name": "Author"}'
+    (res_dir / "manifest.json").write_text(f"""\
+{{
+  "Group": "{group}",
+  "Name": "{safe_name}",
+  "Version": "1.0.0",
+  "Description": "{safe_name} - a Hytale server mod",
+  "Authors": [{author_entry}],
+  "Main": "{group}.{safe_name}Plugin",
+  "LoadOrder": "POSTWORLD",
+  "ServerVersion": "^0.6.3"
+}}
+""", encoding="utf-8")
+
+    # --- Main plugin class ---
+    (src_dir / f"{safe_name}Plugin.java").write_text(f"""\
+package {group};
+
+import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+
+import javax.annotation.Nonnull;
+import java.util.logging.Level;
+
+public class {safe_name}Plugin extends JavaPlugin {{
+
+    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+    private static {safe_name}Plugin instance;
+
+    public {safe_name}Plugin(@Nonnull JavaPluginInit init) {{
+        super(init);
+        instance = this;
+    }}
+
+    public static {safe_name}Plugin getInstance() {{
+        return instance;
+    }}
+
+    @Override
+    protected void setup() {{
+        LOGGER.at(Level.INFO).log("[{safe_name}] Setting up...");
+
+        // Register components, events, and systems here
+
+        LOGGER.at(Level.INFO).log("[{safe_name}] Setup complete!");
+    }}
+
+    @Override
+    protected void start() {{
+        LOGGER.at(Level.INFO).log("[{safe_name}] Started!");
+    }}
+
+    @Override
+    protected void shutdown() {{
+        LOGGER.at(Level.INFO).log("[{safe_name}] Shutting down...");
+        instance = null;
+    }}
+}}
+""", encoding="utf-8")
+
+    # --- .gitignore ---
+    (out / ".gitignore").write_text("""\
+.gradle/
+build/
+.idea/*
+!.idea/runConfigurations/
+*.iml
+libs/HytaleServer.jar
+server/
+run/
+""", encoding="utf-8")
+
+    # --- IntelliJ run configs ---
+    def _run_config(cfg_name, tasks):
+        task_xml = "\n".join(f'          <option value="{t}" />' for t in tasks)
+        return f"""\
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="{cfg_name}" type="GradleRunConfiguration" factoryName="Gradle">
+    <ExternalSystemSettings>
+      <option name="executionName" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$" />
+      <option name="externalSystemIdString" value="GRADLE" />
+      <option name="scriptParameters" value="" />
+      <option name="taskDescriptions">
+        <list />
+      </option>
+      <option name="taskNames">
+        <list>
+{task_xml}
+        </list>
+      </option>
+      <option name="vmOptions" />
+    </ExternalSystemSettings>
+    <GradleScriptDebugEnabled>true</GradleScriptDebugEnabled>
+    <method v="2" />
+  </configuration>
+</component>"""
+
+    (idea_dir / "Build.xml").write_text(
+        _run_config("Build", ["build"]), encoding="utf-8")
+    (idea_dir / "Clean_Build.xml").write_text(
+        _run_config("Clean Build", ["clean", "build"]), encoding="utf-8")
+    (idea_dir / "ShadowJar.xml").write_text(
+        _run_config("ShadowJar", ["shadowJar"]), encoding="utf-8")
+
+    # --- boot-server.ps1 (copy from template) ---
+    template_boot = Path(__file__).parent / "server" / "boot-server.ps1"
+    if template_boot.exists():
+        shutil.copy2(template_boot, server_dir / "boot-server.ps1")
+
+    # --- Gradle wrapper ---
+    (gradle_dir / "gradle-wrapper.properties").write_text("""\
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\\://services.gradle.org/distributions/gradle-9.2.1-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+""", encoding="utf-8")
+
+    # Copy gradlew scripts if available from a known location
+    hythaum = Path(__file__).parent.parent / "Hythaum"
+    for f in ["gradlew", "gradlew.bat"]:
+        src = hythaum / f
+        if src.exists():
+            shutil.copy2(src, out / f)
+    wrapper_jar = hythaum / "gradle" / "wrapper" / "gradle-wrapper.jar"
+    if wrapper_jar.exists():
+        shutil.copy2(wrapper_jar, gradle_dir / "gradle-wrapper.jar")
+
+    file_count = sum(1 for _ in out.rglob("*") if _.is_file())
+    return f"""\
+# Mod "{safe_name}" created!
+
+**Location:** `{out}`
+**Package:** `{group}`
+**Files:** {file_count} files generated
+
+## Quick start
+
+1. **Copy HytaleServer.jar** into `{out / 'libs'}` (or `{out / 'server'}`)
+2. **Open** `{out}` in IntelliJ IDEA
+3. Set **Gradle JDK** to Java 25 (Settings > Build Tools > Gradle)
+4. Run the **Build** or **ShadowJar** run configuration
+5. Boot the server: `cd server && .\\boot-server.ps1`
+
+## Project structure
+
+```
+{safe_name}/
+  build.gradle              # Shadow plugin, compileOnly server jar
+  settings.gradle
+  gradle.properties
+  .gitignore
+  server/
+    boot-server.ps1         # Launches local dev server
+  src/main/
+    java/{pkg_path}/{safe_name}Plugin.java
+    resources/manifest.json
+  .idea/runConfigurations/  # Build, Clean Build, ShadowJar
+  gradle/wrapper/           # Gradle 9.2.1 wrapper
+```
+"""
 
 
 if __name__ == "__main__":
