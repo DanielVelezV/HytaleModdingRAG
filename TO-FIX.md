@@ -573,3 +573,6 @@ Try in this order, measure each:
 | Change | Dense R@5 | Pipeline R@5 | Pipeline MRR |
 |---|---|---|---|
 | Round 5 baseline | 73.3% | 50.0% | 0.374 |
+| F1a weighted RRF (0.3) + F2 dedup | 73.3% | 60.0% | 0.399 |
+| + F1d skip FTS for NL queries | 73.3% | 63.3% | 0.438 |
+| + dedup sort bug fix | 73.3% | **73.3%** | **0.505** |
