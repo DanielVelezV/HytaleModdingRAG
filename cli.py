@@ -343,7 +343,7 @@ def cmd_eval(args):
 
 
 def cmd_publish(args):
-    """Zip data/ and create a GitHub Release (admin only)."""
+    """Zip data/ into split assets and create a GitHub Release (admin only)."""
     tag = args.tag
     if not tag:
         print("Error: --tag is required (e.g. v0.6.3)")
@@ -353,35 +353,71 @@ def cmd_publish(args):
         print("No data directory found.")
         return
 
-    print(f"Packaging data for release {tag}...")
-    zip_path = BASE_DIR / f"hytale-rag-data-{tag}.zip"
+    exclude_dirs = {"decompilers", "snapshots", "data_backup"}
+    exclude_files = {"dashboard.log", "fts.sqlite-shm", "fts.sqlite-wal", "version.json"}
 
-    exclude = {"dashboard.log", "decompilers", "snapshots", "data_backup"}
+    chromadb_dir = DATA_DIR / "chromadb"
+    prefix = f"hytale-rag-data"
+    zip_sqlite = BASE_DIR / f"{prefix}-sqlite-{tag}.zip"
+    zip_vectors = BASE_DIR / f"{prefix}-vectors-{tag}.zip"
+    zip_src = BASE_DIR / f"{prefix}-sources-{tag}.zip"
+
     t0 = time.time()
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+    print(f"Packaging data for release {tag} (3 assets)...")
+
+    # Part 1: chroma.sqlite3 (the main DB with text + metadata)
+    print("\n[1/3] Packaging chroma.sqlite3...")
+    with zipfile.ZipFile(zip_sqlite, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+        sqlite_path = chromadb_dir / "chroma.sqlite3"
+        if sqlite_path.exists():
+            print(f"  chroma.sqlite3 ({sqlite_path.stat().st_size / 1024 / 1024:.0f} MB raw)")
+            zf.write(sqlite_path, "data/chromadb/chroma.sqlite3")
+
+    # Part 2: HNSW vector indices (UUID directories)
+    print("\n[2/3] Packaging HNSW vector indices...")
+    with zipfile.ZipFile(zip_vectors, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        for item in sorted(chromadb_dir.iterdir()):
+            if item.is_dir():
+                for f in sorted(item.iterdir()):
+                    arc = f.relative_to(DATA_DIR)
+                    print(f"  {arc}")
+                    zf.write(f, f"data/{arc}")
+
+    # Part 3: Everything else (decompiled, scraped, FTS, meta)
+    print("\n[3/3] Packaging sources + FTS...")
+    with zipfile.ZipFile(zip_src, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for root, dirs, files in os.walk(DATA_DIR):
-            dirs[:] = [d for d in dirs if d not in exclude]
+            dirs[:] = [d for d in dirs if d not in exclude_dirs and d != "chromadb"]
             for f in files:
+                if f in exclude_files:
+                    continue
                 fp = Path(root) / f
                 arc = fp.relative_to(DATA_DIR)
-                print(f"  Adding {arc}...")
+                print(f"  {arc}")
                 zf.write(fp, f"data/{arc}")
 
-    size_mb = zip_path.stat().st_size / (1024 * 1024)
-    print(f"\nPackaged: {zip_path.name} ({size_mb:.1f} MB) in {time.time()-t0:.0f}s")
+    zips = [(zip_sqlite, "sqlite"), (zip_vectors, "vectors"), (zip_src, "sources")]
+    sizes = {}
+    print(f"\nPackaged in {time.time()-t0:.0f}s:")
+    for zp, label in zips:
+        mb = zp.stat().st_size / (1024 * 1024)
+        sizes[label] = mb
+        print(f"  {zp.name}: {mb:.1f} MB")
+    print(f"  Total: {sum(sizes.values()):.1f} MB")
 
-    if size_mb > 2048:
-        print(f"\nWARNING: File is {size_mb:.0f} MB — exceeds GitHub's 2 GB release asset limit.")
-        print("Consider splitting or increasing compression.")
+    over = [zp.name for zp, _ in zips if zp.stat().st_size / (1024 * 1024) > 2048]
+    if over:
+        print(f"\nWARNING: {', '.join(over)} exceeds GitHub's 2 GB limit.")
         return
 
+    all_zips = [str(zp) for zp, _ in zips]
     print(f"\nTo create the release:")
-    print(f"  gh release create {tag} {zip_path} --title \"Hytale RAG Data {tag}\" --notes \"Pre-built RAG index for Hytale Server {tag}\"")
+    print(f"  gh release create {tag} {' '.join(all_zips)} --title \"Hytale RAG Data {tag}\" --notes \"Pre-built RAG index for Hytale Server {tag}\"")
 
     if args.upload:
-        print(f"\nUploading release {tag}...")
+        print(f"\nCreating release {tag}...")
         result = subprocess.run(
-            ["gh", "release", "create", tag, str(zip_path),
+            ["gh", "release", "create", tag, *all_zips,
              "--title", f"Hytale RAG Data {tag}",
              "--notes", f"Pre-built RAG index for Hytale Server {tag}"],
             capture_output=True, text=True,
