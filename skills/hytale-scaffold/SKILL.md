@@ -1,6 +1,6 @@
 ---
 name: hytale-scaffold
-description: "Use when the user asks to create a new Hytale mod project. Covers project structure, Gradle setup, IntelliJ configuration, and the dev server boot workflow."
+description: "Use when the user asks to create a new Hytale mod project. Covers project structure, Gradle setup, IntelliJ configuration, hot reload, and the dev server boot workflow."
 metadata:
   type: reference
 ---
@@ -35,8 +35,10 @@ MyMod/
   settings.gradle                 # rootProject.name = 'mymod'
   gradle.properties               # JVM args, Java 25 instructions
   .gitignore                      # Ignores build/, .idea/*, libs/, server/, run/
+  run/                            # Working directory for Hytale Server
+    mods/                         # Mod jars loaded at runtime
   server/
-    boot-server.ps1               # Dev server launcher (auto-detects Java 25)
+    boot-server.ps1               # Standalone dev server launcher (no IntelliJ needed)
   src/main/
     java/com/mymod/
       MyModPlugin.java            # Extends JavaPlugin, setup/start/shutdown lifecycle
@@ -44,6 +46,7 @@ MyMod/
       manifest.json               # Name, Version, Main class, LoadOrder, ServerVersion
   .idea/
     runConfigurations/
+      Hytale_Server.xml           # Application run config with hot reload
       Build.xml                   # gradle build
       Clean_Build.xml             # gradle clean build
       ShadowJar.xml               # gradle shadowJar
@@ -91,9 +94,21 @@ Extends `JavaPlugin` with the standard lifecycle:
 
 Uses `HytaleLogger.forEnclosingClass()` — the engine's logger, NOT `java.util.logging.Logger`.
 
+### Hytale Server run config (hot reload)
+
+The `Hytale_Server.xml` run configuration is an **Application** type that launches the Hytale server directly from IntelliJ:
+
+- **Main class:** `com.hypixel.hytale.Main`
+- **Program arguments:** `--allow-op --disable-sentry`
+- **VM options:** `-XX:+AllowEnhancedClassRedefinition` — enables live class redefinition
+- **Working directory:** `$PROJECT_DIR$/run`
+- **Before launch:** Make (builds the project first)
+
+This is the primary way to develop — it replaces the boot-server.ps1 workflow for IntelliJ users.
+
 ### boot-server.ps1
 
-The dev server launcher:
+The standalone dev server launcher (for users without IntelliJ or for CI):
 1. Probes for a Java 25+ runtime (checks `MOD_JAVA` env, `JAVA_HOME`, PATH, common install dirs)
 2. Reads the mod name/version from `manifest.json` to find the correct jar in `build/libs/`
 3. Copies the jar into `run/mods/` (only replaces the mod's own jar, preserves other mods)
@@ -105,23 +120,43 @@ The dev server launcher:
 ## First-run instructions (give these to the user)
 
 1. **Copy `HytaleServer.jar`** into the project's `libs/` folder (or `server/` — the build auto-copies it)
-2. **Open the project** in IntelliJ IDEA
-3. **Set Gradle JDK to Java 25**: Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JDK
-4. **Reload Gradle**: click the elephant icon in the Gradle tool window
-5. **Run "Build"** from the run configurations dropdown (top-right)
-6. **Boot the server**: open a terminal in the `server/` folder and run `.\boot-server.ps1`
+2. **Copy `Assets.zip`** into the `run/` folder (from `%APPDATA%\Hytale\install\release\package\game\latest`)
+3. **Open the project** in IntelliJ IDEA
+4. **Set Gradle JDK to Java 25**: Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JDK
+5. **Reload Gradle**: click the elephant icon in the Gradle tool window
+6. **Select "Hytale Server"** from the run configurations dropdown (top-right) and hit Run
 7. **Connect**: launch Hytale client, connect to `localhost`
 
 ## Hot reload workflow
 
-The mod does NOT hot-reload Java code (JVM limitation). The workflow is:
+The "Hytale Server" run config launches with `-XX:+AllowEnhancedClassRedefinition`, which enables the JVM to hot-swap changed classes at runtime.
+
+### How it works
 
 1. Edit code in IntelliJ
-2. Run **ShadowJar** (or `.\gradlew shadowJar` in terminal)
-3. Type `stop` in the server console
-4. Run `.\boot-server.ps1` again
+2. Press **Ctrl+F9** (Build Project) — IntelliJ recompiles the changed classes
+3. The JVM picks up the new class definitions automatically — **no server restart needed**
 
-The boot script only takes ~2 seconds since it doesn't recompile — it just copies the jar and launches. For asset-only changes (JSON configs, `.lang` files), some may reload without restart depending on the asset type — see [[hytale-assets]] for details.
+### What can be hot-reloaded
+
+- Method body changes (add/modify logic inside existing methods)
+- Field value changes
+
+### What requires a restart
+
+- Adding new classes
+- Changing class hierarchy (extends/implements)
+- Adding/removing fields or methods (structural changes)
+- Changes to `manifest.json`
+
+For these, stop the server and re-run the "Hytale Server" config.
+
+### Alternative: boot-server.ps1
+
+If not using IntelliJ:
+1. Run `.\gradlew shadowJar` in terminal
+2. Run `.\server\boot-server.ps1`
+3. For changes, stop the server, rebuild, and relaunch (~2 seconds)
 
 ## Common issues
 
@@ -133,6 +168,7 @@ The boot script only takes ~2 seconds since it doesn't recompile — it just cop
 | 118 MB jar file | Server classes bundled | Check shadowJar excludes `com.hypixel` — see [[hytale-plugin]] |
 | Plugin not loading | Wrong Main class in manifest | Verify `Main` matches the fully qualified class name |
 | `compileOnly` errors | Missing HytaleServer.jar | Copy it into `libs/` or `server/` |
+| Hot reload not working | Missing VM flag | Ensure run config has `-XX:+AllowEnhancedClassRedefinition` |
 
 ## Related skills
 
