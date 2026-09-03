@@ -1,6 +1,7 @@
 """Hytale Modding RAG — interactive CLI."""
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -42,13 +43,24 @@ BANNER = r"""[bold cyan]
 [dim]  RAG — AI-powered knowledge base for Hytale server modding[/dim]
 """
 
+SHELL_COMMANDS = {
+    "setup": "Download pre-built RAG data",
+    "update": "Check for newer data",
+    "serve": "Start MCP server",
+    "dashboard": "Start web dashboard",
+    "create-mod": "Scaffold a new mod project",
+    "status": "Show index status",
+    "admin": "Admin commands (index-jar, publish, ...)",
+    "help": "Show available commands",
+    "clear": "Clear the screen",
+    "exit": "Exit the shell",
+}
+
 
 @app.callback()
 def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
-        rprint(BANNER)
-        _print_status_summary()
-        rprint("\n[dim]Run [bold]hytale-rag --help[/bold] for all commands[/dim]")
+        _interactive_shell()
 
 
 def _print_status_summary():
@@ -694,6 +706,83 @@ def _load_version():
         except (json.JSONDecodeError, OSError):
             pass
     return None
+
+
+def _clear_screen():
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def _interactive_shell():
+    _clear_screen()
+    rprint(BANNER)
+    _print_status_summary()
+    rprint()
+
+    prompt_fn = None
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.completion import WordCompleter
+        from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.formatted_text import HTML
+
+        commands = list(SHELL_COMMANDS.keys())
+        admin_commands = ["index-jar", "scrape-guides", "index-mods", "publish", "snapshot", "eval"]
+        all_completions = commands + [f"admin {c}" for c in admin_commands]
+        completer = WordCompleter(all_completions, ignore_case=True)
+
+        session = PromptSession(
+            history=InMemoryHistory(),
+            completer=completer,
+        )
+        prompt_fn = lambda: session.prompt(
+            HTML("<ansibrightcyan><b>hytale-rag</b></ansibrightcyan> <ansigray>></ansigray> "),
+        )
+    except Exception:
+        prompt_fn = lambda: input("hytale-rag > ")
+
+    while True:
+        try:
+            user_input = prompt_fn().strip()
+        except (KeyboardInterrupt, EOFError):
+            rprint("\n[dim]Goodbye![/dim]")
+            break
+
+        if not user_input:
+            continue
+
+        if user_input in ("exit", "quit", "q"):
+            rprint("[dim]Goodbye![/dim]")
+            break
+
+        if user_input == "clear":
+            _clear_screen()
+            rprint(BANNER)
+            continue
+
+        if user_input == "help":
+            table = Table(title="Commands", border_style="cyan", show_edge=False)
+            table.add_column("Command", style="bold cyan")
+            table.add_column("Description")
+            for cmd, desc in SHELL_COMMANDS.items():
+                table.add_row(cmd, desc)
+            rprint()
+            rprint(table)
+            rprint()
+            continue
+
+        try:
+            parts = shlex.split(user_input)
+        except ValueError:
+            parts = user_input.split()
+
+        try:
+            app(parts, standalone_mode=False)
+        except SystemExit:
+            pass
+        except Exception as e:
+            rprint(f"[red]Error: {e}[/red]")
+
+        rprint()
 
 
 if __name__ == "__main__":
