@@ -1106,6 +1106,7 @@ def create_mod(name: str, output_dir: str, group: str = "", author: str = "", ho
         d.mkdir(parents=True, exist_ok=True)
 
     # --- build.gradle ---
+    vendor_line = ('\n        vendor = JvmVendorSpec.JETBRAINS') if hot_reload else ''
     (out / "build.gradle").write_text(f"""\
 plugins {{
     id 'java'
@@ -1126,8 +1127,7 @@ dependencies {{
 
 java {{
     toolchain {{
-        languageVersion = JavaLanguageVersion.of(25){"""
-        vendor = JvmVendorSpec.JETBRAINS""" if hot_reload else ""}
+        languageVersion = JavaLanguageVersion.of(25){vendor_line}
     }}
 }}
 
