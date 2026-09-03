@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hytale Modding RAG</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
 <style>
   :root {
     --bg: #f6f6f7;
@@ -84,7 +85,7 @@
   .sidebar-brand h1 { font-size: 15px; font-weight: 700; line-height: 1.2; }
   .sidebar-brand .version { font-size: 11px; color: var(--text3); font-weight: 500; }
 
-  .sidebar-nav { padding: 16px 12px; flex: 1; }
+  .sidebar-nav { padding: 16px 12px; flex: 1; overflow-y: auto; }
 
   .nav-section { margin-bottom: 24px; }
   .nav-section-label {
@@ -546,6 +547,267 @@
   .log-level.ERROR { color: #f38ba8; }
   .log-msg { color: #cdd6f4; }
 
+  /* ─── Skills ─── */
+  .skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .skill-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .skill-card:hover { border-color: var(--purple); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .skill-card .skill-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--teal-bg);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 14px;
+  }
+  .skill-card .skill-name {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .skill-card .skill-files {
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .skill-viewer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .skill-viewer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .skill-viewer-header h3 { font-size: 16px; font-weight: 700; flex: 1; }
+  .skill-viewer-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+  .skill-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: inherit;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .skill-tab:hover { color: var(--text); }
+  .skill-tab.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+  .skill-viewer-body {
+    padding: 32px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .skill-viewer-body .md-content {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .md-content h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+  .md-content h2 { font-size: 19px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
+  .md-content h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; }
+  .md-content h4 { font-size: 14px; font-weight: 700; margin: 20px 0 6px; }
+  .md-content p { margin: 0 0 12px; }
+  .md-content ul, .md-content ol { margin: 0 0 12px; padding-left: 24px; }
+  .md-content li { margin-bottom: 4px; }
+  .md-content code {
+    background: var(--purple-bg);
+    color: var(--purple);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 0.9em;
+  }
+  .md-content pre {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 0 0 16px;
+    overflow-x: auto;
+    line-height: 1.6;
+  }
+  .md-content pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: 12px;
+  }
+  .md-content blockquote {
+    border-left: 3px solid var(--purple);
+    padding: 8px 16px;
+    margin: 0 0 12px;
+    background: var(--purple-bg);
+    border-radius: 0 8px 8px 0;
+    color: var(--text2);
+  }
+  .md-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 16px;
+    font-size: 13px;
+  }
+  .md-content th, .md-content td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+  .md-content th { background: var(--bg); font-weight: 600; }
+  .md-content hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .md-content strong { font-weight: 700; }
+
+  .btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    margin-bottom: 20px;
+  }
+  .btn-back:hover { border-color: var(--purple); color: var(--purple); }
+
+  .btn-danger {
+    padding: 8px 16px;
+    background: var(--red-bg);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--red);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover { background: var(--red); color: white; }
+
+  .btn-create {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, var(--teal) 0%, #2dd4bf 100%);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(13,148,136,0.3);
+  }
+  .btn-create:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,148,136,0.4); }
+
+  /* ─── Modal ─── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.15s ease;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 600px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .modal label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 6px;
+  }
+  .modal input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .modal input[type="text"]:focus { border-color: var(--purple); }
+  .modal textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: 14px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    color: var(--text);
+    outline: none;
+    resize: vertical;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .modal textarea:focus { border-color: var(--purple); }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .btn-cancel {
+    padding: 10px 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-cancel:hover { border-color: var(--text3); }
+
   /* ─── Empty State ─── */
   .empty-state {
     text-align: center;
@@ -607,6 +869,14 @@
       <button class="nav-item" data-panel="mods-source">
         <span class="icon">&#128230;</span> GitHub Mods
         <span class="nav-badge" id="nav-mods-count">-</span>
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Knowledge</div>
+      <button class="nav-item" data-panel="skills">
+        <span class="icon">&#128218;</span> Skills
+        <span class="nav-badge" id="nav-skills-count">-</span>
       </button>
     </div>
 
@@ -682,6 +952,11 @@
       <div id="mods-detail"></div>
     </div>
 
+    <!-- SKILLS -->
+    <div class="panel" id="panel-skills">
+      <div id="skills-content"></div>
+    </div>
+
     <!-- DIFF -->
     <div class="panel" id="panel-diff">
       <div id="diff-content"></div>
@@ -710,6 +985,7 @@ const PAGE_TITLES = {
   'api-source': 'Java API',
   'guides-source': 'Community Guides',
   'mods-source': 'GitHub Mods',
+  skills: 'Skills',
   diff: 'API Diff',
   logs: 'Logs',
 };
@@ -719,6 +995,7 @@ const PAGE_CRUMBS = {
   'api-source': 'Data Sources / Java API',
   'guides-source': 'Data Sources / Community Guides',
   'mods-source': 'Data Sources / GitHub Mods',
+  skills: 'Knowledge / Modding Skills',
   diff: 'Tools / Version Diff',
   logs: 'Tools / Server Logs',
 };
@@ -733,6 +1010,7 @@ $$('.nav-item').forEach(item => {
     $(`#panel-${panel}`).classList.add('active');
     $('#page-title').textContent = PAGE_TITLES[panel] || panel;
     $('#page-breadcrumb').textContent = PAGE_CRUMBS[panel] || '';
+    if (panel === 'skills') loadSkills();
   });
 });
 
@@ -974,6 +1252,160 @@ async function doSearch() {
 
 $('#search-query').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
+// Skills
+let skillsCache = null;
+
+async function loadSkills() {
+  const el = $('#skills-content');
+  try {
+    const res = await fetch('/api/skills');
+    const skills = await res.json();
+    skillsCache = skills;
+    $('#nav-skills-count').textContent = skills.length;
+    renderSkillsList(skills);
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);padding:20px">Error loading skills: ${e.message}</div>`;
+  }
+}
+
+function renderSkillsList(skills) {
+  const el = $('#skills-content');
+  let html = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+    <h3 style="font-size:16px;font-weight:700;flex:1">${skills.length} Skill${skills.length !== 1 ? 's' : ''}</h3>
+    <button class="btn-create" onclick="showCreateSkillModal()">+ New Skill</button>
+  </div>`;
+
+  if (!skills.length) {
+    html += `<div class="empty-state">
+      <div class="empty-icon" style="background:var(--teal-bg)">&#128218;</div>
+      <h3>No skills yet</h3>
+      <p>Skills are modding knowledge guides. Create one to get started.</p>
+    </div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="skills-grid">';
+  for (const s of skills) {
+    const fileCount = s.files.length;
+    const name = s.name.replace(/^hytale-/, '');
+    html += `<div class="skill-card" onclick="openSkill('${esc(s.name)}')">
+      <div class="skill-icon">&#128218;</div>
+      <div class="skill-name">${esc(s.name)}</div>
+      <div class="skill-files">${fileCount} file${fileCount !== 1 ? 's' : ''}: ${s.files.map(f => esc(f)).join(', ')}</div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function openSkill(name) {
+  const el = $('#skills-content');
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)">Loading...</div>';
+
+  try {
+    const res = await fetch(`/api/skills/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    if (data.error) { el.innerHTML = `<div style="color:var(--red)">${esc(data.error)}</div>`; return; }
+    renderSkillViewer(data);
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+function renderSkillViewer(data) {
+  const el = $('#skills-content');
+  const fileNames = Object.keys(data.files);
+  const firstFile = fileNames[0] || '';
+
+  let html = `<button class="btn-back" onclick="loadSkills()">&#8592; Back to skills</button>`;
+  html += `<div class="skill-viewer">
+    <div class="skill-viewer-header">
+      <h3>${esc(data.name)}</h3>
+      <button class="btn-danger" onclick="deleteSkill('${esc(data.name)}')">Delete</button>
+    </div>
+    <div class="skill-viewer-tabs" id="skill-tabs">
+      ${fileNames.map((f, i) => `<button class="skill-tab${i === 0 ? ' active' : ''}" data-file="${esc(f)}" onclick="switchSkillTab(this, '${esc(data.name)}')">${esc(f)}</button>`).join('')}
+    </div>
+    <div class="skill-viewer-body">
+      <div class="md-content" id="skill-md-content">${renderMarkdown(data.files[firstFile] || '')}</div>
+    </div>
+  </div>`;
+
+  el.innerHTML = html;
+  window._currentSkillFiles = data.files;
+}
+
+function switchSkillTab(tabEl, name) {
+  $$('#skill-tabs .skill-tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  const file = tabEl.dataset.file;
+  const content = window._currentSkillFiles[file] || '';
+  $('#skill-md-content').innerHTML = renderMarkdown(content);
+}
+
+function renderMarkdown(md) {
+  try {
+    return marked.parse(md, { breaks: false, gfm: true });
+  } catch(e) {
+    return '<pre>' + esc(md) + '</pre>';
+  }
+}
+
+async function deleteSkill(name) {
+  if (!confirm(`Delete skill "${name}" and all its files? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/skills/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.deleted) {
+      loadSkills();
+    } else {
+      alert(data.error || 'Failed to delete');
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function showCreateSkillModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div class="modal">
+    <h3>Create New Skill</h3>
+    <label>Skill Name</label>
+    <input type="text" id="new-skill-name" placeholder="e.g. hytale-inventory">
+    <label>SKILL.md Content (Markdown)</label>
+    <textarea id="new-skill-content" placeholder="# My Skill\n\nWrite your skill guide here..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      <button class="btn-create" onclick="createSkill()">Create Skill</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#new-skill-name').focus();
+}
+
+async function createSkill() {
+  const name = $('#new-skill-name').value.trim();
+  const content = $('#new-skill-content').value.trim();
+  if (!name) { alert('Enter a skill name'); return; }
+  if (!content) { alert('Enter skill content'); return; }
+
+  try {
+    const res = await fetch('/api/skills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, content }),
+    });
+    const data = await res.json();
+    if (data.created) {
+      document.querySelector('.modal-overlay').remove();
+      loadSkills();
+    } else {
+      alert(data.error || 'Failed to create');
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 // Diff
 async function loadDiff() {
   const el = $('#diff-content');
@@ -1026,6 +1458,7 @@ async function loadLogs() {
 // Init
 loadStatus();
 loadDiff();
+loadSkills().then(() => {});
 setInterval(loadStatus, 30000);
 setInterval(loadLogs, 5000);
 </script>

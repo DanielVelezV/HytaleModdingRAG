@@ -219,6 +219,67 @@ def api_diff():
         return jsonify({"error": str(e)}), 500
 
 
+SKILLS_DIR = Path(__file__).parent / "skills"
+
+
+@app.route("/api/skills")
+def api_skills_list():
+    if not SKILLS_DIR.exists():
+        return jsonify([])
+    skills = []
+    for d in sorted(SKILLS_DIR.iterdir()):
+        if not d.is_dir():
+            continue
+        skill_file = d / "SKILL.md"
+        files = [str(f.relative_to(d)).replace("\\", "/") for f in d.rglob("*.md")]
+        skills.append({
+            "name": d.name,
+            "files": files,
+            "has_skill": skill_file.exists(),
+        })
+    return jsonify(skills)
+
+
+@app.route("/api/skills/<name>")
+def api_skill_get(name):
+    skill_dir = SKILLS_DIR / name
+    if not skill_dir.exists() or not skill_dir.is_dir():
+        return jsonify({"error": "Skill not found"}), 404
+    files = {}
+    for f in skill_dir.rglob("*.md"):
+        rel = str(f.relative_to(skill_dir)).replace("\\", "/")
+        files[rel] = f.read_text(encoding="utf-8")
+    return jsonify({"name": name, "files": files})
+
+
+@app.route("/api/skills", methods=["POST"])
+def api_skill_create():
+    data = request.get_json()
+    name = data.get("name", "").strip()
+    content = data.get("content", "").strip()
+    if not name:
+        return jsonify({"error": "Missing skill name"}), 400
+    if not content:
+        return jsonify({"error": "Missing skill content"}), 400
+    safe = "".join(c for c in name if c.isalnum() or c in "-_").lower()
+    if not safe:
+        return jsonify({"error": "Invalid skill name"}), 400
+    skill_dir = SKILLS_DIR / safe
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(content, encoding="utf-8")
+    return jsonify({"name": safe, "created": True})
+
+
+@app.route("/api/skills/<name>", methods=["DELETE"])
+def api_skill_delete(name):
+    import shutil
+    skill_dir = SKILLS_DIR / name
+    if not skill_dir.exists():
+        return jsonify({"error": "Skill not found"}), 404
+    shutil.rmtree(skill_dir)
+    return jsonify({"name": name, "deleted": True})
+
+
 @app.route("/api/collections")
 def api_collections():
     try:
