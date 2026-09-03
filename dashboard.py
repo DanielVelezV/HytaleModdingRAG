@@ -150,24 +150,33 @@ def api_search():
 
     from indexer import search
     from fts import hybrid_search
+    from server import _exact_identifier_boost, _enforce_source_slots, _deduplicate_per_class
+
+    fetch = max(30, limit * 3)
+    collections = []
+    if source in ("all", "api"):
+        collections.append(API_COLLECTION)
+    if source in ("all", "guides"):
+        collections.append(GUIDES_COLLECTION)
+    if source in ("all", "mods"):
+        collections.append(MODS_COLLECTION)
 
     results = []
-    if source in ("all", "api"):
-        dense = search(query, API_COLLECTION, n_results=limit)
-        results.extend(hybrid_search(query, API_COLLECTION, dense, n_results=limit))
-    if source in ("all", "guides"):
-        dense = search(query, GUIDES_COLLECTION, n_results=limit)
-        results.extend(hybrid_search(query, GUIDES_COLLECTION, dense, n_results=limit))
-    if source in ("all", "mods"):
-        dense = search(query, MODS_COLLECTION, n_results=limit)
-        results.extend(hybrid_search(query, MODS_COLLECTION, dense, n_results=limit))
+    for col in collections:
+        dense = search(query, col, n_results=fetch)
+        results.extend(hybrid_search(query, col, dense, n_results=fetch // max(1, len(collections))))
 
+    results = _exact_identifier_boost(query, collections, results)
     results.sort(key=lambda r: r.get("rrf_score", 0), reverse=True)
+    results = _deduplicate_per_class(results)
 
     if package:
         results = [r for r in results if package in r.get("metadata", {}).get("package", "")]
 
-    results = results[:limit]
+    if source == "all":
+        results = _enforce_source_slots(results, limit)
+    else:
+        results = results[:limit]
 
     formatted = []
     for r in results:

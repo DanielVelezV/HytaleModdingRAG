@@ -1345,15 +1345,15 @@
     "summary": {
       "mode": "pipeline",
       "questions": 30,
-      "recall_at_5": 0.7333,
-      "recall_at_10": 0.7667,
-      "mrr": 0.5053
+      "recall_at_5": 0.7667,
+      "recall_at_10": 0.8,
+      "mrr": 0.3942
     },
     "per_source": {
       "api": {
-        "r5": 0.7407,
-        "r10": 0.7778,
-        "mrr": 0.4874,
+        "r5": 0.7778,
+        "r10": 0.8148,
+        "mrr": 0.3639,
         "n": 27
       },
       "any": {
@@ -1467,8 +1467,20 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.3333333333333333,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.adventure.worldevents.condition.EventCondition.Event",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
+            "fqn": "com.hypixel.hytale.registry.Registration",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.event.EventRegistry",
             "type": "constructor",
@@ -1486,18 +1498,6 @@
             "type": "method",
             "distance": 0.27356529235839844,
             "rrf_score": 0.016129032258064516
-          },
-          {
-            "fqn": "com.hypixel.hytale.event.EventRegistration",
-            "type": "constructor",
-            "distance": 0.2788540720939636,
-            "rrf_score": 0.015625
-          },
-          {
-            "fqn": "com.hypixel.hytale.event.EventRegistry",
-            "type": "method",
-            "distance": 0.29887521266937256,
-            "rrf_score": 0.015384615384615385
           }
         ]
       },
@@ -1558,6 +1558,12 @@
         "mrr": 0.0,
         "top_results": [
           {
+            "fqn": "com.hypixel.hytale.server.core.entity.Entity",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
             "fqn": "com.hypixel.hytale.protocol.packets.entities.SpawnModelParticles",
             "type": "constructor",
             "distance": 0.2582729458808899,
@@ -1580,12 +1586,6 @@
             "type": "method",
             "distance": 0.26848095655441284,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.protocol.packets.entities.SpawnModelParticles",
-            "type": "constructor",
-            "distance": 0.2795892357826233,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -1599,8 +1599,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.25,
+        "mrr": 0.2,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.entity.entities.Player",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.event.events.permissions.PlayerPermissionChangeEvent.PermissionsAdded",
             "type": "constructor",
@@ -1624,12 +1630,6 @@
             "type": "method",
             "distance": 0.2508787512779236,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.universe.PlayerRef",
-            "type": "method",
-            "distance": 0.26289278268814087,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -1643,8 +1643,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.5,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.inventory.Inventory",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.inventory.InventoryComponent",
             "type": "method",
@@ -1668,12 +1674,6 @@
             "type": "method",
             "distance": 0.3335379958152771,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.inventory.InventoryComponent",
-            "type": "constructor",
-            "distance": 0.335385799407959,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -1687,8 +1687,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.3333333333333333,
+        "mrr": 0.25,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.hytalegenerator.engine.chunkgenerator.ChunkRequest.Arguments",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.command.system.arguments.types.ArgumentType",
             "type": "method",
@@ -1712,12 +1718,6 @@
             "type": "method",
             "distance": 0.29119378328323364,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.command.system.arguments.types.BooleanFlagArgumentType",
-            "type": "constructor",
-            "distance": 0.2918589115142822,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -1733,6 +1733,12 @@
         "recall@10": 0.0,
         "mrr": 0.0,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.hytalegenerator.plugin.Handle",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.component.system.EventSystem",
             "type": "method",
@@ -1756,12 +1762,6 @@
             "type": "class_overview",
             "distance": 0.29113829135894775,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.event.events.ecs.GameModeTypeEnterEvent",
-            "type": "class_overview",
-            "distance": 0.2957680821418762,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -1819,8 +1819,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.5,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.adventure.worldevents.condition.EventCondition.Event",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.event.AsyncEventBusRegistry",
             "type": "method",
@@ -1844,12 +1850,6 @@
             "type": "method",
             "distance": 0.29045307636260986,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.event.EventBus",
-            "type": "method",
-            "distance": 0.2965697646141052,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -1865,6 +1865,12 @@
         "recall@10": 0.0,
         "mrr": 0.0,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.universe.world.World",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.universe.world.worldmap.IWorldMap",
             "type": "method",
@@ -1888,12 +1894,6 @@
             "type": "method",
             "distance": 0.30770719051361084,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.builtin.adventure.farming.states.FarmingBlock",
-            "type": "method",
-            "distance": 0.3114015460014343,
-            "rrf_score": 0.015384615384615385
           }
         ]
       },
@@ -1950,10 +1950,28 @@
           "DamageSystems"
         ],
         "source": "api",
-        "recall@5": 0.0,
-        "recall@10": 0.0,
-        "mrr": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "mrr": 0.5,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.entity.Entity",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
+            "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.Damage",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
+            "fqn": "com.hypixel.hytale.component.system.System",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.PlayerHitIndicators",
             "type": "method",
@@ -1965,24 +1983,6 @@
             "type": "method",
             "distance": 0.24852705001831055,
             "rrf_score": 0.01639344262295082
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.CanBreathe",
-            "type": "method",
-            "distance": 0.25149238109588623,
-            "rrf_score": 0.016129032258064516
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.ApplyParticles",
-            "type": "method",
-            "distance": 0.25428974628448486,
-            "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems.HitAnimation",
-            "type": "method",
-            "distance": 0.2558923363685608,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2041,8 +2041,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.5,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.audio.systems.MusicEmitterSystems.Lifecycle",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.plugin.PluginManager",
             "type": "method",
@@ -2066,12 +2072,6 @@
             "type": "method",
             "distance": 0.35484856367111206,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.plugin.commands.PluginCommand.PluginManageCommand",
-            "type": "constructor",
-            "distance": 0.35525912046432495,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2085,8 +2085,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.5,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.adventure.worldevents.context.Context",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.command.system.CommandContext",
             "type": "method",
@@ -2110,12 +2116,6 @@
             "type": "method",
             "distance": 0.26798349618911743,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.command.system.exceptions.SenderTypeException",
-            "type": "method",
-            "distance": 0.27131789922714233,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2129,8 +2129,20 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.2,
+        "mrr": 1.0,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.builtin.hytalegenerator.Registry",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
+            "fqn": "com.hypixel.hytale.builtin.hytalegenerator.patterns.Pattern",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.component.ResourceType",
             "type": "method",
@@ -2148,18 +2160,6 @@
             "type": "method",
             "distance": 0.33433961868286133,
             "rrf_score": 0.016129032258064516
-          },
-          {
-            "fqn": "com.hypixel.hytale.component.ComponentRegistryProxy",
-            "type": "constructor",
-            "distance": 0.3348631262779236,
-            "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.registry.Registry",
-            "type": "method",
-            "distance": 0.3378077745437622,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2173,8 +2173,20 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.3333333333333333,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.entity.entities.Player",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
+            "fqn": "com.hypixel.hytale.server.core.inventory.InventoryComponent.Storage",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.universe.playerdata.PlayerStorage",
             "type": "method",
@@ -2192,18 +2204,6 @@
             "type": "constructor",
             "distance": 0.30661940574645996,
             "rrf_score": 0.016129032258064516
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.universe.playerdata.DiskPlayerStorageProvider",
-            "type": "method",
-            "distance": 0.30777448415756226,
-            "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.universe.playerdata.PlayerStorage",
-            "type": "method",
-            "distance": 0.30975764989852905,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2217,8 +2217,20 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.5,
+        "mrr": 0.25,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.protocol.Interaction",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
+          {
+            "fqn": "com.hypixel.hytale.component.system.System",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction",
             "type": "constructor",
@@ -2236,18 +2248,6 @@
             "type": "constructor",
             "distance": 0.33034998178482056,
             "rrf_score": 0.016129032258064516
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.modules.interaction.interaction.config.data.SingleCollector",
-            "type": "method",
-            "distance": 0.33782172203063965,
-            "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.entity.InteractionContext",
-            "type": "method",
-            "distance": 0.34128284454345703,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2305,8 +2305,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.3333333333333333,
+        "mrr": 0.25,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.entity.Entity",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.entity.entities.player.data.UniqueItemUsagesComponent",
             "type": "method",
@@ -2330,12 +2336,6 @@
             "type": "method",
             "distance": 0.2780190110206604,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.entity.entities.player.data.UniqueItemUsagesComponent",
-            "type": "method",
-            "distance": 0.2781018018722534,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2349,8 +2349,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 1.0,
+        "mrr": 0.5,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.component.system.System",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.cosmetics.CosmeticRegistry",
             "type": "method",
@@ -2374,12 +2380,6 @@
             "type": "class_overview",
             "distance": 0.3504731059074402,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.cosmetics.CosmeticsModule",
-            "type": "method",
-            "distance": 0.35120588541030884,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2392,8 +2392,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.5,
+        "mrr": 0.3333333333333333,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.component.system.System",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.builtin.path.PrefabPathSystems.PrefabPlaceEntityEventSystem",
             "type": "constructor",
@@ -2417,12 +2423,6 @@
             "type": "constructor",
             "distance": 0.3103253245353699,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.worldgen.prefab.PrefabBaseCheck",
-            "type": "method",
-            "distance": 0.31536221504211426,
-            "rrf_score": 0.015625
           }
         ]
       },
@@ -2647,8 +2647,14 @@
         "source": "api",
         "recall@5": 1.0,
         "recall@10": 1.0,
-        "mrr": 0.5,
+        "mrr": 0.3333333333333333,
         "top_results": [
+          {
+            "fqn": "com.hypixel.hytale.server.core.entity.Entity",
+            "type": "class_overview",
+            "distance": null,
+            "rrf_score": 0.5
+          },
           {
             "fqn": "com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier",
             "type": "constructor",
@@ -2672,12 +2678,6 @@
             "type": "constructor",
             "distance": 0.2700791358947754,
             "rrf_score": 0.015873015873015872
-          },
-          {
-            "fqn": "com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType.Regenerating",
-            "type": "method",
-            "distance": 0.27061158418655396,
-            "rrf_score": 0.015625
           }
         ]
       }

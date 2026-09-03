@@ -287,7 +287,6 @@ def _exact_identifier_boost(query: str, collection_names: list[str], results: li
         if t.lower() not in _BOOST_SKIP
     ]
     method_tokens = re.findall(r'\b[a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*\b', query)
-
     if not class_tokens and not method_tokens:
         return results
 
