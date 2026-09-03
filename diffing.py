@@ -9,6 +9,32 @@ SNAPSHOT_FILE = DATA_DIR / "api_snapshot.json"
 PREV_SNAPSHOT_FILE = DATA_DIR / "api_snapshot_prev.json"
 DIFF_FILE = DATA_DIR / "api_diff.json"
 
+_PAGE = 5000
+
+
+def _get_paginated(collection, where, include):
+    """Fetch all matching docs in pages to avoid SQLite variable limits."""
+    all_ids: list[str] = []
+    all_docs: list[str] = []
+    all_metas: list[dict] = []
+    offset = 0
+    while True:
+        result = collection.get(
+            where=where, include=include,
+            limit=_PAGE, offset=offset,
+        )
+        if not result["ids"]:
+            break
+        all_ids.extend(result["ids"])
+        if "documents" in include:
+            all_docs.extend(result["documents"])
+        if "metadatas" in include:
+            all_metas.extend(result["metadatas"])
+        if len(result["ids"]) < _PAGE:
+            break
+        offset += _PAGE
+    return {"ids": all_ids, "documents": all_docs, "metadatas": all_metas}
+
 
 def snapshot_api() -> Path:
     from indexer import get_collection
@@ -17,12 +43,14 @@ def snapshot_api() -> Path:
     if collection.count() == 0:
         return SNAPSHOT_FILE
 
-    overviews = collection.get(
+    overviews = _get_paginated(
+        collection,
         where={"type": "class_overview"},
         include=["documents", "metadatas"],
     )
 
-    methods_data = collection.get(
+    methods_data = _get_paginated(
+        collection,
         where={"type": "method"},
         include=["metadatas"],
     )
@@ -69,7 +97,7 @@ def _extract_all_fields(text: str) -> list[str]:
 
     after = text[idx + len("// Fields:"):]
     next_section = len(after)
-    for marker in ["// Methods:", "// Extends:", "// Implements:"]:
+    for marker in ["// Methods:", "// Extends:", "// Implements:", "// Inherited methods:"]:
         pos = after.find(marker)
         if pos != -1 and pos < next_section:
             next_section = pos
