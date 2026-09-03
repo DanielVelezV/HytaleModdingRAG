@@ -1285,6 +1285,26 @@ run/
     (idea_dir / "ShadowJar.xml").write_text(
         _run_config("ShadowJar", ["shadowJar"]), encoding="utf-8")
 
+    # --- Hytale Server run config (Application with hot reload) ---
+    (idea_dir / "Hytale_Server.xml").write_text(f"""\
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Hytale Server" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.hypixel.hytale.Main" />
+    <module name="{lower}.main" />
+    <option name="PROGRAM_PARAMETERS" value="--allow-op --disable-sentry" />
+    <option name="VM_PARAMETERS" value="-XX:+AllowEnhancedClassRedefinition" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/run" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>""", encoding="utf-8")
+
+    # --- run directory setup ---
+    run_dir = out / "run"
+    run_mods = run_dir / "mods"
+    run_mods.mkdir(parents=True, exist_ok=True)
+
     # --- boot-server.ps1 (copy from template) ---
     template_boot = Path(__file__).parent / "server" / "boot-server.ps1"
     if template_boot.exists():
@@ -1321,11 +1341,16 @@ zipStorePath=wrapper/dists
 
 ## Quick start
 
-1. **Copy HytaleServer.jar** into `{out / 'libs'}` (or `{out / 'server'}`)
-2. **Open** `{out}` in IntelliJ IDEA
-3. Set **Gradle JDK** to Java 25 (Settings > Build Tools > Gradle)
-4. Run the **Build** or **ShadowJar** run configuration
-5. Boot the server: `cd server && .\\boot-server.ps1`
+1. **Copy HytaleServer.jar** into `{out / 'libs'}`
+2. **Copy Assets.zip** into `{out / 'run'}` (from `%APPDATA%\\Hytale\\install\\release\\package\\game\\latest`)
+3. **Open** `{out}` in IntelliJ IDEA
+4. Set **Gradle JDK** to Java 25 (Settings > Build Tools > Gradle)
+5. Select **"Hytale Server"** run configuration and hit Run
+
+## Hot reload
+
+The "Hytale Server" config launches with `-XX:+AllowEnhancedClassRedefinition`.
+Edit code, press **Ctrl+F9** (Build) — changes apply without restarting the server.
 
 ## Project structure
 
@@ -1335,12 +1360,16 @@ zipStorePath=wrapper/dists
   settings.gradle
   gradle.properties
   .gitignore
+  run/                      # Working dir for Hytale Server (put Assets.zip here)
+    mods/                   # Mod jars loaded at runtime
   server/
-    boot-server.ps1         # Launches local dev server
+    boot-server.ps1         # Standalone launcher (no IntelliJ needed)
   src/main/
     java/{pkg_path}/{safe_name}Plugin.java
     resources/manifest.json
-  .idea/runConfigurations/  # Build, Clean Build, ShadowJar
+  .idea/runConfigurations/
+    Hytale_Server.xml       # Run with hot reload (-XX:+AllowEnhancedClassRedefinition)
+    Build.xml / Clean_Build.xml / ShadowJar.xml
   gradle/wrapper/           # Gradle 9.2.1 wrapper
 ```
 """
