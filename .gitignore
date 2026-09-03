@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 *.egg-info/
 hytale-rag-data-*.zip
+admin.py
