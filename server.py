@@ -1303,8 +1303,7 @@ run/
 
     # --- run directory setup ---
     run_dir = out / "run"
-    run_mods = run_dir / "mods"
-    run_mods.mkdir(parents=True, exist_ok=True)
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Copy server scripts and downloader binaries ---
     template_dir = Path(__file__).parent / "server"
