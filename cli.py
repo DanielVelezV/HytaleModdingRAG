@@ -180,7 +180,10 @@ def cmd_status(args):
 def cmd_eval(args):
     import subprocess
     eval_script = str(__import__("pathlib").Path(__file__).parent / "eval" / "run_eval.py")
-    subprocess.run([sys.executable, eval_script], check=False)
+    cmd = [sys.executable, eval_script]
+    if getattr(args, "pipeline", False):
+        cmd.append("--pipeline")
+    subprocess.run(cmd, check=False)
 
 
 def main():
@@ -223,6 +226,7 @@ def main():
     p_status.set_defaults(func=cmd_status)
 
     p_eval = sub.add_parser("eval", help="Run the eval set against the index")
+    p_eval.add_argument("--pipeline", action="store_true", help="Also run hybrid+boost+slots pipeline comparison")
     p_eval.set_defaults(func=cmd_eval)
 
     args = parser.parse_args()

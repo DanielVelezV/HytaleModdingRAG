@@ -1,4 +1,5 @@
 import asyncio
+import re
 import sys
 import time
 import uuid
@@ -268,83 +269,99 @@ async def index_github_mods(min_stars: int = 2, max_repos: int = 30) -> str:
     )
 
 
-def _exact_identifier_boost(query: str, collection_name: str) -> list[dict]:
-    """If a query token exactly matches a known class or method name, fetch those chunks first."""
-    from fts import _get_conn
-    import sqlite3
+_BOOST_SKIP = frozenset({
+    "how", "the", "use", "get", "set", "run", "can", "has", "are", "all",
+    "not", "for", "new", "try", "out", "add", "may", "let", "put", "end",
+    "any", "did", "see", "say", "was", "way", "own", "now", "why", "yet",
+    "its", "per", "via", "also", "just", "each", "into", "when", "what",
+    "does", "from", "with", "that", "this", "have", "been", "will", "used",
+})
 
-    table = f"fts_{collection_name}"
-    conn = _get_conn()
-    try:
-        conn.execute(f"SELECT 1 FROM [{table}] LIMIT 1")
-    except sqlite3.OperationalError:
-        return []
 
-    tokens = query.split()
-    boosted_ids: list[str] = []
-    for token in tokens:
-        cleaned = "".join(c for c in token if c.isalnum() or c in "._")
-        if not cleaned or len(cleaned) < 3:
-            continue
-        rows = conn.execute(
-            f"SELECT chunk_id FROM [{table}] WHERE class_name = ? OR method_name = ? LIMIT 5",
-            (cleaned, cleaned),
-        ).fetchall()
-        for row in rows:
-            if row[0] not in boosted_ids:
-                boosted_ids.append(row[0])
-
-    if not boosted_ids:
-        return []
-
+def _exact_identifier_boost(query: str, collection_names: list[str], results: list[dict]) -> list[dict]:
+    """Fetch exact class/method name matches from the index and place them first."""
     from indexer import get_collection
-    try:
-        col = get_collection(collection_name)
-        result = col.get(ids=boosted_ids[:10], include=["metadatas", "documents"])
-        boosted = []
-        for i, eid in enumerate(result["ids"]):
-            boosted.append({
-                "id": eid,
-                "text": result["documents"][i],
-                "metadata": result["metadatas"][i],
-                "distance": 0.0,
-                "rrf_score": 1.0,
-            })
-        return boosted
-    except Exception:
-        return []
+
+    class_tokens = [
+        t for t in re.findall(r'\b[A-Z][a-zA-Z0-9]{2,}\b', query)
+        if t.lower() not in _BOOST_SKIP
+    ]
+    method_tokens = re.findall(r'\b[a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*\b', query)
+
+    if not class_tokens and not method_tokens:
+        return results
+
+    existing_ids = {r.get("id") for r in results}
+    boosted = []
+
+    for col_name in collection_names:
+        try:
+            collection = get_collection(col_name)
+        except Exception:
+            continue
+
+        for token in class_tokens:
+            hits = collection.get(
+                where={"$and": [{"class_name": token}, {"type": "class_overview"}]},
+                include=["documents", "metadatas"],
+            )
+            for i, doc_id in enumerate(hits["ids"]):
+                if doc_id not in existing_ids:
+                    boosted.append({
+                        "id": doc_id,
+                        "text": hits["documents"][i],
+                        "metadata": hits["metadatas"][i],
+                        "rrf_score": 1.0,
+                    })
+                    existing_ids.add(doc_id)
+
+        for token in method_tokens[:3]:
+            hits = collection.get(
+                where={"$and": [{"method_name": token}, {"type": "method"}]},
+                include=["documents", "metadatas"],
+                limit=3,
+            )
+            for i, doc_id in enumerate(hits["ids"]):
+                if doc_id not in existing_ids:
+                    boosted.append({
+                        "id": doc_id,
+                        "text": hits["documents"][i],
+                        "metadata": hits["metadatas"][i],
+                        "rrf_score": 1.0,
+                    })
+                    existing_ids.add(doc_id)
+
+    return boosted + results
 
 
-def _enforce_source_slots(results: list[dict], limit: int,
-                          min_api: int = 2, min_guides: int = 2, min_mods: int = 1) -> list[dict]:
-    """Guarantee minimum per-source slots in combined results when available."""
-    by_source: dict[str, list[dict]] = {"api": [], "guide": [], "mod": []}
+def _enforce_source_slots(results: list[dict], limit: int) -> list[dict]:
+    """Guarantee minimum per-source representation: >=2 api, >=2 guides, >=1 mod."""
+    SLOTS = {"api": 2, "guide": 2, "mod": 1}
+
+    by_source: dict[str, list[dict]] = {}
     for r in results:
         src = r.get("metadata", {}).get("source", "")
-        if src in by_source:
-            by_source[src].append(r)
-        else:
-            by_source.setdefault("other", []).append(r)
+        by_source.setdefault(src, []).append(r)
 
-    reserved: list[dict] = []
-    seen_ids: set[str] = set()
+    selected = []
+    used_ids: set[str] = set()
 
-    for source, minimum in [("api", min_api), ("guide", min_guides), ("mod", min_mods)]:
-        for r in by_source.get(source, []):
-            if len([x for x in reserved if x.get("metadata", {}).get("source") == source]) >= minimum:
-                break
-            if r["id"] not in seen_ids:
-                reserved.append(r)
-                seen_ids.add(r["id"])
+    for src, minimum in SLOTS.items():
+        for r in by_source.get(src, [])[:minimum]:
+            rid = r.get("id")
+            if rid and rid not in used_ids:
+                selected.append(r)
+                used_ids.add(rid)
 
     for r in results:
-        if len(reserved) >= limit:
+        if len(selected) >= limit:
             break
-        if r["id"] not in seen_ids:
-            reserved.append(r)
-            seen_ids.add(r["id"])
+        rid = r.get("id")
+        if rid and rid not in used_ids:
+            selected.append(r)
+            used_ids.add(rid)
 
-    return reserved[:limit]
+    return selected[:limit]
 
 
 @mcp.tool()
@@ -370,21 +387,12 @@ def search_hytale_docs(query: str, limit: int = 8) -> str:
     guide_results = hybrid_search(query, GUIDES_COLLECTION, guide_dense, n_results=fetch // 3)
     mod_results = hybrid_search(query, MODS_COLLECTION, mod_dense, n_results=fetch // 4)
 
-    boosted: list[dict] = []
-    for col_name in [API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION]:
-        boosted.extend(_exact_identifier_boost(query, col_name))
-
     combined = api_results + guide_results + mod_results
+    combined = _exact_identifier_boost(
+        query, [API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION], combined,
+    )
     combined.sort(key=lambda r: r.get("rrf_score", 0), reverse=True)
-
-    seen = {r["id"] for r in boosted}
-    merged = list(boosted)
-    for r in combined:
-        if r["id"] not in seen:
-            merged.append(r)
-            seen.add(r["id"])
-
-    all_results = _enforce_source_slots(merged, limit)
+    all_results = _enforce_source_slots(combined, limit)
 
     if not all_results:
         return "No results found. Make sure you've run index_jar, scrape_guides, and/or index_github_mods first."
@@ -411,19 +419,12 @@ def search_hytale_api(query: str, limit: int = 8, package: str = "", type: str =
     fetch = max(30, limit * 3)
     dense = search(query, API_COLLECTION, n_results=fetch, package_filter=package, type_filter=type)
     results = hybrid_search(query, API_COLLECTION, dense, n_results=fetch)
-
-    boosted = _exact_identifier_boost(query, API_COLLECTION)
-    seen = {r["id"] for r in boosted}
-    merged = list(boosted)
-    for r in results:
-        if r["id"] not in seen:
-            merged.append(r)
-            seen.add(r["id"])
-
-    if not merged:
+    results = _exact_identifier_boost(query, [API_COLLECTION], results)
+    results = results[:limit]
+    if not results:
         return "No API results. Run index_jar first to index a HytaleServer.jar."
 
-    return _format_results(merged[:limit])
+    return _format_results(results)
 
 
 @mcp.tool()
@@ -443,11 +444,12 @@ def search_hytale_guides(query: str, limit: int = 8) -> str:
     fetch = max(30, limit * 3)
     dense = search(query, GUIDES_COLLECTION, n_results=fetch)
     results = hybrid_search(query, GUIDES_COLLECTION, dense, n_results=fetch)
-
+    results = _exact_identifier_boost(query, [GUIDES_COLLECTION], results)
+    results = results[:limit]
     if not results:
         return "No guide results. Run scrape_guides first to index the community docs."
 
-    return _format_results(results[:limit])
+    return _format_results(results)
 
 
 @mcp.tool()
@@ -467,11 +469,12 @@ def search_hytale_mods(query: str, limit: int = 8) -> str:
     fetch = max(30, limit * 3)
     dense = search(query, MODS_COLLECTION, n_results=fetch)
     results = hybrid_search(query, MODS_COLLECTION, dense, n_results=fetch)
-
+    results = _exact_identifier_boost(query, [MODS_COLLECTION], results)
+    results = results[:limit]
     if not results:
         return "No mod examples indexed. Run index_github_mods first."
 
-    return _format_results(results[:limit])
+    return _format_results(results)
 
 
 def _collect_inherited_methods(collection, parent_name: str, depth: int = 0) -> list[str]:
@@ -521,7 +524,6 @@ def get_class_info(class_name: str) -> str:
     if collection.count() == 0:
         return "No API indexed. Run index_jar first."
 
-    # C8: Filter to class_overview chunks when looking up by class_name
     if "." in class_name:
         results = collection.get(
             where={"fqn": class_name},
@@ -590,7 +592,6 @@ def get_class_hierarchy(class_name: str) -> str:
     if collection.count() == 0:
         return "No API indexed. Run index_jar first."
 
-    # C8: Prefer exact fqn match, then filter to class_overview
     if "." in class_name:
         results = collection.get(
             where={"$and": [{"fqn": class_name}, {"type": "class_overview"}]},
@@ -635,7 +636,6 @@ def get_class_hierarchy(class_name: str) -> str:
             if pm.get("implements"):
                 lines.append(f"  Implements: {pm['implements']}")
 
-    # C8: Filter subclass lookup to class_overview chunks
     children = collection.get(
         where={"$and": [{"extends": meta.get("class_name", class_name)}, {"type": "class_overview"}]},
         include=["metadatas"],
@@ -872,7 +872,6 @@ def get_method_source(class_name: str, method_name: str) -> str:
 
     collection = get_collection(API_COLLECTION)
 
-    # C8: filter to class_overview to get reliable file path
     if "." in class_name:
         results = collection.get(
             where={"$and": [{"fqn": class_name}, {"type": "class_overview"}]},
@@ -989,7 +988,6 @@ def find_usages(name: str, limit: int = 10) -> str:
             if len(results) >= limit * 3:
                 break
 
-    # Search mods via the index
     from indexer import search as idx_search
     mod_hits = idx_search(name, MODS_COLLECTION, n_results=limit)
     for hit in mod_hits:
