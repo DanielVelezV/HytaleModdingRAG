@@ -6,3 +6,5 @@ __pycache__/
 *.egg-info/
 hytale-rag-data-*.zip
 admin.py
+dist/
+build/

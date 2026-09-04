@@ -1,0 +1,4 @@
+include LICENSE
+include README.md
+recursive-include server *.ps1 *.exe *.md hytale-downloader-linux-amd64
+recursive-include skills *.md
