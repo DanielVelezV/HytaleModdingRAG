@@ -9,9 +9,22 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from mcp.server.mcpserver import MCPServer
 
-from config import API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION, DECOMPILED_DIR
+from config import API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION, DECOMPILED_DIR, DATA_DIR, CHROMADB_DIR
 
 _jobs: dict[str, dict] = {}
+
+_NO_DATA_MSG = (
+    "No RAG data found. Run the CLI first to download the pre-built index:\n\n"
+    "  pip install -e .\n"
+    "  hytale-rag\n\n"
+    "The CLI downloads ~2.3 GB of pre-indexed data on first run."
+)
+
+
+def _require_data() -> str | None:
+    if not CHROMADB_DIR.exists() or not any(CHROMADB_DIR.iterdir()):
+        return _NO_DATA_MSG
+    return None
 
 mcp = MCPServer(
     "hytale-docs",
@@ -391,6 +404,9 @@ def search_hytale_docs(query: str, limit: int = 8) -> str:
         query: Natural language search query
         limit: Max results to return (default 8)
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import search
     from fts import hybrid_search
 
@@ -430,6 +446,9 @@ def search_hytale_api(query: str, limit: int = 8, package: str = "", type: str =
         package: Optional package prefix to scope results (e.g. "com.hypixel.hytale.server.core.command")
         type: Optional chunk type filter — "class_overview" or "method"
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import search
     from fts import hybrid_search
 
@@ -456,6 +475,9 @@ def search_hytale_guides(query: str, limit: int = 8) -> str:
         query: Search query
         limit: Max results to return (default 8)
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import search
     from fts import hybrid_search
 
@@ -481,6 +503,9 @@ def search_hytale_mods(query: str, limit: int = 8) -> str:
         query: Search query — feature names, patterns, or class names
         limit: Max results to return (default 8)
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import search
     from fts import hybrid_search
 
@@ -536,6 +561,9 @@ def get_class_info(class_name: str) -> str:
     Args:
         class_name: Simple class name (e.g. "BlockType") or fully qualified name
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import get_collection, API_COLLECTION
 
     collection = get_collection(API_COLLECTION)
@@ -604,6 +632,9 @@ def get_class_hierarchy(class_name: str) -> str:
     Args:
         class_name: Simple class name (e.g. "AbstractCommand") or fully qualified name
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import get_collection, API_COLLECTION
 
     collection = get_collection(API_COLLECTION)
@@ -697,6 +728,9 @@ def list_packages() -> str:
 
     Useful to understand the structure of the Hytale server API.
     """
+    err = _require_data()
+    if err:
+        return err
     from indexer import get_collection, API_COLLECTION
 
     collection = get_collection(API_COLLECTION)
@@ -729,6 +763,9 @@ def list_packages() -> str:
 @mcp.tool()
 def get_index_status() -> str:
     """Check what's currently indexed — API version, chunk counts, last update times, and background jobs."""
+    err = _require_data()
+    if err:
+        return err
     from indexer import get_status
 
     status = get_status()
@@ -791,6 +828,9 @@ def get_api_changes() -> str:
 
     Only available after index_jar has been run at least twice (so there's a previous version to compare against).
     """
+    err = _require_data()
+    if err:
+        return err
     from diffing import get_latest_diff
 
     diff = get_latest_diff()
@@ -884,6 +924,9 @@ def get_method_source(class_name: str, method_name: str) -> str:
         class_name: Simple class name (e.g. "BlockType") or fully qualified name
         method_name: Method name to find (e.g. "register", "<init>" for constructor)
     """
+    err = _require_data()
+    if err:
+        return err
     import re as _re
     from indexer import get_collection
     from config import API_COLLECTION
@@ -977,6 +1020,9 @@ def find_usages(name: str, limit: int = 10) -> str:
         name: Class name, method name, or fully qualified name to search for
         limit: Max results to return (default 10)
     """
+    err = _require_data()
+    if err:
+        return err
     import re as _re
 
     results = []
