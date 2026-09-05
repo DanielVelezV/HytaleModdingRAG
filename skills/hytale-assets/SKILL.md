@@ -1,6 +1,6 @@
 ---
 name: hytale-assets
-description: "Use when a Hytale server plugin adds, clones or mutates game assets — items, item qualities, recipes, blocks — or ships client-facing art. Concrete triggers: 'add a new item', 'add a variant of an existing item', 'inject an asset at boot', `LoadAssetEvent`, `AssetStore`, `loadAssets`, 'clone a quality', 'mint a recipe', 'my item shows a ? icon', 'my new art doesn't appear', 'the item can't be salvaged / dismantled', 'the recipe isn't recognized at the bench', 'the whole server failed to boot with Missing default assets', pack layout under `Server/**` vs `Common/**`, 'add a translation key', 'ship a new language', 'my lang key renders as itself', 'a whole lang file stopped resolving', `server.lang`. SKIP for: reading or writing a live `ItemStack`'s per-instance metadata (an asset is the type, not the instance), the codec machinery itself (`hytale-codec`), and ECS systems (`hytale-ecs`)."
+description: "Use when a Hytale server plugin adds, clones or mutates game assets — items, item qualities, recipes, blocks — or ships client-facing art. Concrete triggers: 'add a new item', 'add a variant of an existing item', 'inject an asset at boot', `LoadAssetEvent`, `AssetStore`, `loadAssets`, 'clone a quality', 'mint a recipe', 'my item shows a ? icon', 'my new art doesn't appear', 'the item can't be salvaged / dismantled', 'the recipe isn't recognized at the bench', 'the whole server failed to boot with Missing default assets', pack layout under `Server/**` vs `Common/**`, 'add a translation key', 'ship a new language', 'my lang key renders as itself', 'a whole lang file stopped resolving', `server.lang`. SKIP for: reading or writing a live `ItemStack`'s per-instance metadata, durability or quality — an asset is the type, not the instance (`hytale-item-stack`); the codec machinery itself (`hytale-codec`); and ECS systems (`hytale-ecs`)."
 ---
 
 # Injecting and shipping assets
@@ -8,12 +8,13 @@ description: "Use when a Hytale server plugin adds, clones or mutates game asset
 > **Engine `0.5.9`** (patchline `release`) · last checked 2026-08-23 — facts verified against
 > `Server-0.5.9.jar` plus a real `Assets.zip`, with in-game confirmation. **Newer server?
 > Re-verify before trusting anything below**; asset keys and the boot hook are what a bump
-> moves first.
+> moves first. A **section carrying its own later version and date** was re-verified against
+> that one; everything without a date still rests on the stamp above.
 
 **The distinction that governs everything here: an asset is the *type*, not the
 instance.** Injecting a variant changes what every copy of that id is; per-instance
-metadata on a live stack is a different mechanism entirely. If a value has to differ
-between two copies of the same item, it is not an asset change.
+metadata on a live stack is a different mechanism entirely (`hytale-item-stack`). If a
+value has to differ between two copies of the same item, it is not an asset change.
 
 ## Two ways to add an asset, and they are not interchangeable
 
@@ -92,6 +93,31 @@ written as the bare id string.
 **So: patch what the asset inlines, and never assume an interaction referenced by id is
 reachable from the parent's document.** Whether a nested value is patchable is decided by
 how the original JSON was written, not by the field's Java type.
+
+## ⚠️ A decoded field is not the JSON — defaults and post-decode normalization (`0.6.1`, verified 2026-09-04)
+
+When you enumerate the item store to decide what to touch, you are reading **resolved**
+objects: the `Parent` chain has been walked and a post-decode pass has already run. Two
+consequences bite anyone writing a gate over the catalog:
+
+- **A "not declared" field is not a neutral value.** The stackable flag is initialized to
+  `-1` and then rewritten by the item's post-decode step: an undeclared one becomes **1**
+  when the item carries a weapon / armor / tool / builder-tool / block-selector block, and
+  **100** otherwise. So most gear never mentions it and still resolves to 1, and an item
+  with nothing but an *empty* `"Tool": {}` block resolves to 1 too. Never read the raw
+  sentinel as "unset" at runtime — by the time a plugin sees the item, it is gone.
+- **A boolean default may be `true`, set in the constructor rather than by the codec.** The
+  repairability flag is one: it is `true` unless a file says otherwise, so an explicit
+  `false` is a *statement*, which makes it a usable classification lever. It is the engine's
+  own marker for an item whose durability is a **consumable resource** (a charge count)
+  rather than wear — the class of item that must not be treated as forgeable gear, and that
+  breaks in interesting ways if you write to it (`hytale-item-stack`).
+
+**Measure before you build a gate on either.** Both of the above were only trustworthy
+after a census over the shipped item files with `Parent` chains resolved — which is cheap
+to run and is the difference between a rule and a guess. Watch for **tag-only gear** while
+you are there: some items declare a type in their tags and carry **no stat block at all**,
+so a gate written on the blocks alone silently skips them.
 
 ## An asset is not frozen after boot — same id, live
 

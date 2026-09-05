@@ -4,7 +4,10 @@
 > where a file lives. The page architecture and its Java-side traps are in `SKILL.md`.
 >
 > **Engine `0.5.9`** (patchline `release`) · last checked 2026-08-20 — re-verify against a
-> newer client pack before trusting a path or a macro here; both fail only at open time.
+> newer client pack before trusting a path or a macro here; both fail only at open time —
+> **except a document that fails to parse, which fails at *join*** (see "i18n in `.ui`").
+> The i18n section and the `@Text` trap under it were re-derived on `0.6.1`, in-game
+> 2026-09-05, and say so inline; the rest still carries the older date.
 
 ## Where files live, and what a path costs
 
@@ -289,10 +292,54 @@ matches the game in every language for free.
 The file format has its own traps — trimmed values, and a wrapped line costing the keys
 below it. See the `hytale-assets` skill, "Shipping strings".
 
-The choice between the two text paths is mechanical, not about i18n:
+The choice between the two text paths **is** about i18n, and there is only one right answer
+*(engine `0.6.1`, diagnosed in-game 2026-09-04 and the conversion confirmed 2026-09-05)*:
 
-- **`%key` in markup** — text fixed at authoring time (tab labels, headings, captions).
-- **`set("#X.TextSpans", Message)` from Java** — anything computed, since it takes
-  `.param(…)`.
+- **`set("#X.TextSpans", Message)` from Java** — every string with words in it, fixed labels
+  as much as computed ones.
+- **`%key` in markup** — only where no `…TextSpans` counterpart exists. `PlaceholderText` is
+  the one known case.
+
+**A `%key` is resolved once and never again.** The client resolves it when it first reads
+that `.ui` file and holds the result for the session, so a player who changes language
+mid-session keeps reading it in the language they left while every pushed `Message` follows
+them at once. Only a reconnect re-reads the markup. The server side is not at fault and
+cannot fix it: `GamePacketHandler.handleUpdateLanguage` is `PlayerRef.setLanguage` followed
+by `I18nModule.sendTranslations`, which ships the **whole** table for the new language.
+
+Converting a `%key` label to a push needs an `#Id`, and a **macro instance takes one**
+(`$C.@Subtitle #Heading { @Text = ""; }`). `@Subtitle`, `@Title` and
+`@SmallSecondaryTextButton` each expand to a single root element carrying `Text`, so the id
+lands on the element to push into.
+
+> ### ⚠️ Deleting an instance's `Text:` can break a macro that has no `@Text` default
+>
+> *(engine `0.6.1`, in-game 2026-09-05 — the macro list below is measured, not remembered)*
+>
+> ```
+> Failed to load CustomUI documents
+> (Failed to parse file Common.ui (211:9) – Could not resolve expression for property Text
+>  to type String)
+> ```
+>
+> **The client refuses to join** — a `Crash` disconnect during `GameLoading`, before any
+> page is opened, because every custom document is parsed at join. And **the error names
+> `Common.ui`, not your file**, because the unresolvable `Text: @Text;` is the *macro's*
+> line: `@TextButton` (Common.ui:198) declares `@Anchor` and `@Sounds` defaults and **no
+> `@Text`**.
+>
+> A macro instance can spell its text two ways, and they are not interchangeable when you
+> remove one: `@Text = …` supplies the *parameter*, while a plain `Text: …` property
+> *overrides* the macro's own line, which is why an instance written that way parses
+> without ever supplying `@Text`. Delete that property and the macro's `Text: @Text;` comes
+> back with nothing behind it.
+>
+> **So when you take the text out of a macro instance, leave `@Text = "";` behind** rather
+> than an empty body. Which macros need it, measured over the pack's `Common.ui`: those
+> whose body has `Text: @Text` and no `@Text = ` default — `@TextButton`,
+> `@SecondaryTextButton`, `@TertiaryTextButton`, `@SmallTertiaryTextButton`,
+> `@CancelTextButton`, `@CheckBoxWithLabel` and `@Subtitle`. `@Title` and
+> `@SmallSecondaryTextButton` default to `""` and are safe either way; passing it anyway
+> costs nothing and removes the question.
 
 Literal strings in markup do work. They are the same rule violation as a raw reply string.
