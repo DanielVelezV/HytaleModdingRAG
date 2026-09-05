@@ -1,6 +1,6 @@
 ---
 name: hytale-ui
-description: "Use when building or changing a native custom UI page in a Hytale server plugin — anything involving `.ui` markup, `CustomUIPage` / `InteractiveCustomUIPage`, `UICommandBuilder` / `UIEventBuilder`, `PageManager.openCustomPage`, selectors like `#Id.Property`, event bindings, widgets (fields, dropdowns, item slots, tabs, progress bars, tooltips), or `Common.ui` `$C.@` macros. Concrete triggers: 'add a page/tab/screen', 'add a row/button/checkbox to the page', 'the page won't open', 'Custom UI — Markup Error', 'the page froze on Loading…', 'the client crashed with Selected element … was not found', 'my checkbox does nothing', 'the text field loses what I type', styling or laying out anything a player sees on a page. SKIP for: where a value is stored or validated (that is the mod's own config/persistence layer), command trees and permissions (a command is only one way to open a page), and pushing to the client outside a page — toasts, HUD overlays, chat broadcasts."
+description: "Use when building or changing a native custom UI page in a Hytale server plugin — anything involving `.ui` markup, `CustomUIPage` / `InteractiveCustomUIPage`, `UICommandBuilder` / `UIEventBuilder`, `PageManager.openCustomPage`, selectors like `#Id.Property`, event bindings, widgets (fields, dropdowns, item slots, tabs, progress bars, tooltips), or `Common.ui` `$C.@` macros. Concrete triggers: 'add a page/tab/screen', 'add a row/button/checkbox to the page', 'the page won't open', 'Custom UI — Markup Error', 'the page froze on Loading…', 'the client crashed with Selected element … was not found', 'my checkbox does nothing', 'the text field loses what I type', 'the page keeps the old language after I change it', 'the UI only translates after a reconnect', 'Failed to load CustomUI documents', 'players cannot join since I edited a .ui', 'a label came out blank', styling or laying out anything a player sees on a page. SKIP for: where a value is stored or validated (that is the mod's own config/persistence layer), command trees and permissions (a command is only one way to open a page), and pushing to the client outside a page — toasts, HUD overlays, chat broadcasts."
 ---
 
 # Building a native Hytale UI page
@@ -9,6 +9,8 @@ description: "Use when building or changing a native custom UI page in a Hytale 
 > `Server-0.5.9.jar` plus the shipped `.ui` assets in the client `Assets.zip`, with in-game
 > confirmation through 2026-08. **Newer server? Re-verify before trusting anything below** —
 > especially texture paths and widget property names, which a bump moves first and silently.
+> Two things here *were* re-derived on engine `0.6.1`, in-game 2026-09-05, and carry that
+> date inline: **step 7's rule that all text is pushed**, and the **unbound `@Text`** trap.
 
 **Scope.** This is how a page is *built, drawn and wired*. A page renders values and
 reports gestures; where those values come from and where an edit is written — a config
@@ -92,9 +94,43 @@ shipped `Visible: false`.
 `false` keeps the existing tree and every binding already registered on it, so a handler
 that swaps one sub-tree need not re-add the rest.
 
-**7. Text is always a translation key.** `%server.<mod>.ui.<key>` in markup for text fixed
-at authoring time; `set("#X.TextSpans", message)` from Java for anything computed. Use
-`.TextSpans`, never `.Text`, from Java — `Text:` is the static markup form.
+**7. Text is always a translation key, and it is always *pushed*.** Use
+`set("#X.TextSpans", message)` from Java for **every** string a player reads, fixed labels
+included — `.TextSpans`, never `.Text`, which is the static markup form.
+
+**Do not write `%key` into markup.** It looks like the cheaper path and costs the page its
+translations: a `%key` is resolved by the client **once**, when it first reads that file,
+and nothing re-resolves it against the table it is handed afterwards. A player who changes
+language mid-session then reads every markup-authored label in the language they left,
+while everything the server pushes as a `Message` switches immediately — and only a
+**reconnect** puts the two back in agreement. Verified in-game 2026-09-04 by direct
+comparison: on one page the pushed strings switched and the 70 markup keys did not, while a
+sibling mod's page switched whole. That mod carries **two** `%key`s across 45 `.ui` files;
+both are a `PlaceholderText`, which has no attested `Message` form.
+
+So the split is not "fixed vs computed". It is:
+
+- **Java push** — everything with words in it.
+- **`%key` in markup** — only a property with no `…TextSpans` counterpart (`PlaceholderText`
+  is the known one). Accept that those freeze until reconnect.
+
+A macro instance takes an `#Id` (`$C.@Subtitle #Heading { @Text = ""; }`), and the label
+macros expand to a **single root element** carrying the `Text`, so the id addresses exactly
+the element to push into — no macro needs replacing with a hand-styled label. Two things to
+watch: **keep `@Text = "";`** rather than emptying the body (the trap below — it costs the
+join, not the page), and push **before** anything `remove`s the element, since a batch
+applies in order and a `set` on a removed element is the fatal "not found".
+
+**Check it, don't remember it.** What is left in markup should be only the properties with
+no `Message` form:
+
+```bash
+grep -rho "%[a-zA-Z0-9_.]*" <pack>/Common/UI/Custom/Pages/  # expect: placeholders only
+```
+
+Two failure shapes tell you which half went wrong when you convert a page: a **blank label**
+is a push you did not write, a **client crash on open** is a selector that matches nothing.
+Neither shows up in a build, so re-verify by opening every tab and every prompt.
 
 ## The traps that actually cost days
 
@@ -168,6 +204,41 @@ UI — Markup Error* overlay — so a page that opens at all has valid markup. T
 trip it: **a `%lang.key` in markup may not contain an underscore** (the tokenizer ends the
 identifier there), and **macro parameters (`@X = …`) must come before ordinary properties
 (`Prop: …`)** in an instance body.
+
+**A broken document blocks the *join*, not the page — and blames the wrong file.** Every
+custom document is parsed when a player connects, so bad markup anywhere is a `Crash`
+disconnect during `GameLoading` with *"Failed to load CustomUI documents"* on screen. Nobody
+has to open your page to hit it. The parenthesized detail names the file the failing
+*property* lives in, which for anything inherited is the **design system**, not yours:
+
+```
+Failed to load CustomUI documents
+(Failed to parse file Common.ui (211:9) – Could not resolve expression for property Text
+ to type String)
+```
+
+*(seen in-game 2026-09-05, client on engine `0.6.1`)* That one is the trap below.
+
+**Removing text from a macro instance can leave a required parameter unbound.** An instance
+spells its text two ways and they are **not** interchangeable when you take one away:
+`@Text = …` supplies the *parameter*, while a plain `Text: …` property *overrides* the
+macro's own `Text: @Text;` line — which is why an instance written the second way parses
+without ever supplying `@Text`. Delete that property and the macro's line comes back with
+nothing behind it, and if the macro declares no default the whole document fails.
+
+So **leave `@Text = "";` behind** rather than an empty body. Which macros require it is
+mechanical — body has `Text: @Text` and no `@Text = ` default — so check rather than
+remember, against the **pack's** `Common.ui` (the install's smaller file is a different one):
+
+```bash
+awk '/^@[A-Za-z]+ = /{n=$1;sub(/^@/,"",n);b="";f=1} f{b=b"\n"$0} f&&/^};/{
+  if (b ~ /Text: @Text/ && b !~ /@Text = /) print n; f=0}' Common.ui
+```
+
+On engine `0.6.1` that is `@TextButton`, `@SecondaryTextButton`, `@TertiaryTextButton`,
+`@SmallTertiaryTextButton`, `@CancelTextButton`, `@CheckBoxWithLabel` and `@Subtitle`;
+`@Title` and `@SmallSecondaryTextButton` default to `""`. Passing `@Text = "";` on every
+instance you strip costs nothing and removes the question.
 
 ## The design rule: the page must look shipped with the game
 
