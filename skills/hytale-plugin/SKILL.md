@@ -9,7 +9,8 @@ description: "Use when setting up, building or booting a Hytale server plugin it
 > `Server-0.5.9.jar` (`PluginBase`, `PluginState`, `PluginManager`, `PluginManifest`/`Semver`
 > disassembled; the version conventions measured over an installed mod folder). **Newer
 > server? Re-verify before trusting anything below**; lifecycle phases and manifest keys are
-> what a bump moves first.
+> what a bump moves first. A **section carrying its own later version and date** was
+> re-verified against that one; everything without a date still rests on the stamp above.
 
 **This is the floor every other skill stands on** — where registration is legal, what the
 manifest declares, and how the thing gets built and booted. What you register *does* is each
@@ -247,7 +248,8 @@ not happen, check the boot log for a `SEVERE` before assuming the logic is wrong
 
 ### Two engine commands that save you building content to test with
 
-*(verified against `Server-0.5.9.jar`, 2026-08-25 — `GiveCommand`, `DroplistCommand`)*
+*(verified against `Server-0.5.9.jar`, 2026-08-25 — `GiveCommand`, `DroplistCommand`; the
+give-to-another-player variant re-verified against `Server-0.6.1.jar`, 2026-09-04)*
 
 - **`/give <item> [quantity] [durability] [metadata]`** takes a **`metadata`** argument
   parsed with **`org.bson.BsonDocument.parse`**, and the parsed document goes onto the
@@ -267,6 +269,18 @@ not happen, check the boot log for a `SEVERE` before assuming the logic is wrong
   ⚠️ The same fact is a design constraint: **per-instance metadata is not a trust
   boundary.** Anyone who can run `/give` can forge any key your mod reads, so never gate
   something that matters on metadata alone.
+
+  **To hand the item to somebody else, the target goes first:** `/give <player> <item>
+  [quantity] …`, the same flags. It is registered as a *usage variant* of the one command,
+  not a subcommand, so there is no extra word to type — but it is a different permission
+  (world-editor rather than builder). Handy when the account you are testing from is not
+  the one that needs the item.
+
+  Ids beginning with `*` — the generated key of an asset defined **inline inside another**
+  one, such as a container's filled state — work here like any other: the argument type
+  looks the string up in the asset map with no filtering, and unfiltered suggestions mean
+  they even tab-complete. Those contained ids are often exactly the instance you need to
+  reproduce a report with.
 
 - **`/droplist <droplistId> [count]`** (permission **`hytale:WorldEditor`**) rolls a drop
   table `count` times, merges the results and **prints** them. It **spawns nothing and
