@@ -144,6 +144,16 @@ def _extract_brace_block(source: str, start: int) -> str:
     return source[start:start + MAX_CHUNK_SIZE * 2]
 
 
+def _load_class_descriptions() -> dict[str, str]:
+    desc_path = Path(__file__).parent / "class_descriptions.json"
+    if desc_path.exists():
+        return json.loads(desc_path.read_text(encoding="utf-8"))
+    return {}
+
+
+_CLASS_DESCRIPTIONS = _load_class_descriptions()
+
+
 def _build_class_overview(
     source: str,
     fqn: str,
@@ -215,7 +225,11 @@ def _build_class_overview(
             overview_parts.append("// Inherited methods:")
             overview_parts.append("\n".join(inherited_lines[:40]))
 
-    return "\n\n".join(p for p in overview_parts if p)
+    result = "\n\n".join(p for p in overview_parts if p)
+    desc = _CLASS_DESCRIPTIONS.get(fqn)
+    if desc:
+        result = f"// {desc}\n\n{result}"
+    return result
 
 
 def _extract_methods(source: str) -> list[tuple[str, str, str]]:

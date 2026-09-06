@@ -298,14 +298,15 @@ def _exact_identifier_boost(query: str, collection_names: list[str], results: li
 
     class_tokens = [
         t for t in re.findall(r'\b[A-Z][a-zA-Z0-9]{2,}\b', query)
-        if t.lower() not in _BOOST_SKIP
+        if len(t) >= 5 and t.lower() not in _BOOST_SKIP
     ]
     method_tokens = re.findall(r'\b[a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*\b', query)
     if not class_tokens and not method_tokens:
         return results
 
-    existing_ids = {r.get("id") for r in results}
-    boosted = []
+    existing_ids = {r.get("id"): idx for idx, r in enumerate(results)}
+    boosted: list[dict] = []
+    promoted_indices: set[int] = set()
 
     for col_name in collection_names:
         try:
@@ -319,14 +320,19 @@ def _exact_identifier_boost(query: str, collection_names: list[str], results: li
                 include=["documents", "metadatas"],
             )
             for i, doc_id in enumerate(hits["ids"]):
-                if doc_id not in existing_ids:
+                if doc_id in existing_ids:
+                    idx = existing_ids[doc_id]
+                    if idx not in promoted_indices and idx >= 0:
+                        promoted_indices.add(idx)
+                        boosted.append({**results[idx], "rrf_score": 1.0})
+                else:
                     boosted.append({
                         "id": doc_id,
                         "text": hits["documents"][i],
                         "metadata": hits["metadatas"][i],
                         "rrf_score": 1.0,
                     })
-                    existing_ids.add(doc_id)
+                    existing_ids[doc_id] = -1
 
         for token in method_tokens[:3]:
             hits = collection.get(
@@ -335,16 +341,209 @@ def _exact_identifier_boost(query: str, collection_names: list[str], results: li
                 limit=3,
             )
             for i, doc_id in enumerate(hits["ids"]):
-                if doc_id not in existing_ids:
+                if doc_id in existing_ids:
+                    idx = existing_ids[doc_id]
+                    if idx not in promoted_indices and idx >= 0:
+                        promoted_indices.add(idx)
+                        boosted.append({**results[idx], "rrf_score": 1.0})
+                else:
                     boosted.append({
                         "id": doc_id,
                         "text": hits["documents"][i],
                         "metadata": hits["metadatas"][i],
                         "rrf_score": 1.0,
                     })
-                    existing_ids.add(doc_id)
+                    existing_ids[doc_id] = -1
 
-    return boosted + results
+    remaining = [r for idx, r in enumerate(results) if idx not in promoted_indices]
+    return boosted + remaining
+
+
+_BACKTICK_CLASS_RE = re.compile(r'`((?:[a-z]\w+\.)*[A-Z][a-zA-Z0-9]+)`')
+
+
+def _guide_bridge_boost(guide_results: list[dict], api_results: list[dict]) -> list[dict]:
+    """Extract class names from guide headings and boost matching API results.
+
+    Prioritizes headings (which name the topic class) over body text to avoid
+    noise from incidental class mentions.
+    """
+    from indexer import get_collection
+
+    heading_names: list[str] = []
+    body_names: list[str] = []
+
+    for r in guide_results[:6]:
+        meta = r.get("metadata", {})
+        heading = meta.get("heading", "")
+
+        # Headings like "BreakBlockEvent", "PlayerChatEvent", "UseBlockEvent Pre and Post"
+        for token in re.findall(r'\b([A-Z][a-zA-Z0-9]*(?:[A-Z][a-z][a-zA-Z0-9]*)+)\b', heading):
+            if len(token) >= 6 and token.lower() not in _BOOST_SKIP:
+                heading_names.append(token)
+
+        # Also check backtick-quoted FQNs in heading
+        for m in _BACKTICK_CLASS_RE.finditer(heading):
+            name = m.group(1).split(".")[-1]
+            if len(name) >= 4:
+                heading_names.append(name)
+
+        # From body: only the first line (topic sentence), backtick-quoted names
+        text = r.get("text", "")
+        first_line = text.split("\n")[0] if text else ""
+        for m in _BACKTICK_CLASS_RE.finditer(first_line):
+            name = m.group(1).split(".")[-1]
+            if len(name) >= 6 and name.lower() not in _BOOST_SKIP:
+                body_names.append(name)
+
+    # Deduplicate, heading names first
+    seen: set[str] = set()
+    ordered: list[tuple[str, float]] = []
+    for name in heading_names:
+        if name not in seen:
+            seen.add(name)
+            ordered.append((name, 1.0))
+    for name in body_names:
+        if name not in seen:
+            seen.add(name)
+            ordered.append((name, 0.85))
+
+    if not ordered:
+        return api_results
+
+    existing_ids = {r.get("id"): idx for idx, r in enumerate(api_results)}
+    bridged: list[dict] = []
+    promoted_indices: set[int] = set()
+
+    try:
+        collection = get_collection(API_COLLECTION)
+    except Exception:
+        return api_results
+
+    for name, score in ordered[:10]:
+        hits = collection.get(
+            where={"$and": [{"class_name": name}, {"type": "class_overview"}]},
+            include=["documents", "metadatas"],
+            limit=1,
+        )
+        for i, doc_id in enumerate(hits["ids"]):
+            if doc_id in existing_ids:
+                idx = existing_ids[doc_id]
+                if idx not in promoted_indices:
+                    promoted_indices.add(idx)
+                    bridged.append({**api_results[idx], "rrf_score": score})
+            else:
+                bridged.append({
+                    "id": doc_id,
+                    "text": hits["documents"][i],
+                    "metadata": hits["metadatas"][i],
+                    "rrf_score": score,
+                })
+                existing_ids[doc_id] = -1
+
+    remaining = [r for idx, r in enumerate(api_results) if idx not in promoted_indices]
+    return bridged + remaining
+
+
+def _stem(word: str) -> str:
+    """Minimal suffix stripping for matching inflections."""
+    if word.endswith("ing") and len(word) > 5:
+        return word[:-3]
+    if word.endswith("tion") and len(word) > 6:
+        return word[:-4]
+    if word.endswith("ed") and len(word) > 4:
+        return word[:-2]
+    if word.endswith("ly") and len(word) > 4:
+        return word[:-2]
+    if word.endswith("s") and len(word) > 4 and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+_CAMEL_SPLIT_RE = re.compile(r'[A-Z][a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\b)')
+_CLASSNAME_NOISE = frozenset({
+    "event", "ecs", "type", "component", "system", "base", "abstract", "impl", "default",
+    "from", "with", "for", "into", "over", "the", "and", "how", "can", "what", "that",
+    "this", "does", "are", "was", "has", "have", "been", "not", "all", "any", "get",
+    "set", "add", "use", "new", "pre", "post", "when", "where", "which", "who",
+})
+
+
+def _classname_token_boost(query: str, api_results: list[dict]) -> list[dict]:
+    """Match query words against CamelCase-split class names from the known set."""
+    from indexer import get_collection
+    from java_parser import _CLASS_DESCRIPTIONS
+
+    if not _CLASS_DESCRIPTIONS:
+        return api_results
+
+    query_words = set(re.findall(r'\b[a-z]{3,}\b', query.lower()))
+    query_stems = {_stem(w) for w in query_words} - _CLASSNAME_NOISE
+    if len(query_stems) < 2:
+        return api_results
+
+    all_class_stems: dict[str, set[str]] = {}
+    stem_freq: dict[str, int] = {}
+    for fqn in _CLASS_DESCRIPTIONS:
+        cn = fqn.rsplit(".", 1)[-1]
+        tokens = _CAMEL_SPLIT_RE.findall(cn)
+        stems = {_stem(t.lower()) for t in tokens if len(t) >= 3} - _CLASSNAME_NOISE
+        all_class_stems[fqn] = stems
+        for s in stems:
+            stem_freq[s] = stem_freq.get(s, 0) + 1
+
+    scored: list[tuple[str, str, float]] = []
+    for fqn, class_stems in all_class_stems.items():
+        if not class_stems:
+            continue
+        overlap = query_stems & class_stems
+        n_overlap = len(overlap)
+        n_class = len(class_stems)
+        if n_overlap >= 2:
+            coverage = n_overlap / n_class
+            scored.append((fqn, fqn.rsplit(".", 1)[-1], coverage))
+        elif n_overlap == 1 and n_class <= 2:
+            stem = next(iter(overlap))
+            if len(stem) >= 5 and stem_freq.get(stem, 0) <= 4:
+                scored.append((fqn, fqn.rsplit(".", 1)[-1], 1.0 / n_class))
+
+    if not scored:
+        return api_results
+
+    scored.sort(key=lambda x: x[2], reverse=True)
+
+    existing_ids = {r.get("id"): idx for idx, r in enumerate(api_results)}
+    boosted: list[dict] = []
+    promoted_indices: set[int] = set()
+
+    try:
+        collection = get_collection(API_COLLECTION)
+    except Exception:
+        return api_results
+
+    for fqn, class_name, score in scored[:2]:
+        hits = collection.get(
+            where={"$and": [{"class_name": class_name}, {"type": "class_overview"}]},
+            include=["documents", "metadatas"],
+            limit=1,
+        )
+        for i, doc_id in enumerate(hits["ids"]):
+            if doc_id in existing_ids:
+                idx = existing_ids[doc_id]
+                if idx not in promoted_indices and idx >= 0:
+                    promoted_indices.add(idx)
+                    boosted.append({**api_results[idx], "rrf_score": 1.0})
+            else:
+                boosted.append({
+                    "id": doc_id,
+                    "text": hits["documents"][i],
+                    "metadata": hits["metadatas"][i],
+                    "rrf_score": 1.0,
+                })
+                existing_ids[doc_id] = -1
+
+    remaining = [r for idx, r in enumerate(api_results) if idx not in promoted_indices]
+    return boosted + remaining
 
 
 def _deduplicate_per_class(results: list[dict], max_per_fqn: int = 2) -> list[dict]:
@@ -419,6 +618,9 @@ def search_hytale_docs(query: str, limit: int = 8) -> str:
     guide_results = hybrid_search(query, GUIDES_COLLECTION, guide_dense, n_results=fetch // 3)
     mod_results = hybrid_search(query, MODS_COLLECTION, mod_dense, n_results=fetch // 4)
 
+    api_results = _guide_bridge_boost(guide_results, api_results)
+    api_results = _classname_token_boost(query, api_results)
+
     combined = api_results + guide_results + mod_results
     combined = _exact_identifier_boost(
         query, [API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION], combined,
@@ -456,6 +658,7 @@ def search_hytale_api(query: str, limit: int = 8, package: str = "", type: str =
     dense = search(query, API_COLLECTION, n_results=fetch, package_filter=package, type_filter=type)
     results = hybrid_search(query, API_COLLECTION, dense, n_results=fetch)
     results = _exact_identifier_boost(query, [API_COLLECTION], results)
+    results = _classname_token_boost(query, results)
     results = _deduplicate_per_class(results)
     results = results[:limit]
     if not results:

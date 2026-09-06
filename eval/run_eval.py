@@ -61,7 +61,7 @@ def recall_at_k(results: list[dict], expected_fqns: list[str], k: int) -> float:
 def _pipeline_search(query: str, source: str, n_results: int = 10) -> list[dict]:
     """Run the full hybrid + boost + slots pipeline matching the MCP tools."""
     from fts import hybrid_search
-    from server import _exact_identifier_boost, _enforce_source_slots, _deduplicate_per_class
+    from server import _exact_identifier_boost, _enforce_source_slots, _deduplicate_per_class, _guide_bridge_boost, _classname_token_boost
 
     source_map = {
         "api": API_COLLECTION,
@@ -79,6 +79,9 @@ def _pipeline_search(query: str, source: str, n_results: int = 10) -> list[dict]
         guide_results = hybrid_search(query, GUIDES_COLLECTION, guide_dense, n_results=fetch // 3)
         mod_results = hybrid_search(query, MODS_COLLECTION, mod_dense, n_results=fetch // 4)
 
+        api_results = _guide_bridge_boost(guide_results, api_results)
+        api_results = _classname_token_boost(query, api_results)
+
         combined = api_results + guide_results + mod_results
         combined = _exact_identifier_boost(
             query, [API_COLLECTION, GUIDES_COLLECTION, MODS_COLLECTION], combined,
@@ -92,6 +95,8 @@ def _pipeline_search(query: str, source: str, n_results: int = 10) -> list[dict]
     dense = search(query, col, n_results=fetch)
     results = hybrid_search(query, col, dense, n_results=fetch)
     results = _exact_identifier_boost(query, [col], results)
+    if source == "api":
+        results = _classname_token_boost(query, results)
     results = _deduplicate_per_class(results)
     return results[:n_results]
 

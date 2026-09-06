@@ -17,10 +17,16 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import json
 import tree_sitter as ts
 import tree_sitter_java as tsjava
 
 from config import MAX_CHUNK_SIZE
+
+_DESCRIPTIONS_PATH = Path(__file__).parent / "class_descriptions.json"
+_CLASS_DESCRIPTIONS: dict[str, str] = {}
+if _DESCRIPTIONS_PATH.exists():
+    _CLASS_DESCRIPTIONS = json.loads(_DESCRIPTIONS_PATH.read_text(encoding="utf-8"))
 
 # ---------------------------------------------------------------------------
 # Language / parser singleton
@@ -760,6 +766,9 @@ def _process_type_node(
         class_node, source_bytes, fqn, package, imports, inheritance,
         inherited_methods=inherited or None,
     )
+    desc = _CLASS_DESCRIPTIONS.get(fqn)
+    if desc:
+        overview_text = f"// {desc}\n\n{overview_text}"
     class_meta: dict = {
         "source": "api",
         "type": "class_overview",
