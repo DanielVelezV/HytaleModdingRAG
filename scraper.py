@@ -64,6 +64,9 @@ def scrape_guides() -> list[dict]:
             if page_data and page_data["content"].strip():
                 pages.append(page_data)
 
+    for local_page in _parse_local_guides():
+        pages.append(local_page)
+
     output = SCRAPED_DIR / "guides.json"
     output.write_text(json.dumps(pages, indent=2, ensure_ascii=False), encoding="utf-8")
     return pages
@@ -215,3 +218,53 @@ def _is_nested_in_seen(el: Tag, seen: set) -> bool:
             return True
         parent = parent.parent
     return False
+
+
+_HEADING_RE = re.compile(r"^(#{1,4})\s+(.+)$", re.MULTILINE)
+
+
+def _parse_local_guides() -> list[dict]:
+    """Parse local .md files in SCRAPED_DIR into the same page format as web guides."""
+    pages = []
+    for md_file in sorted(SCRAPED_DIR.glob("*.md")):
+        text = md_file.read_text(encoding="utf-8")
+        if not text.strip():
+            continue
+
+        title = md_file.stem.replace("_", " ").title()
+        first_line = text.lstrip().split("\n", 1)[0]
+        if first_line.startswith("# "):
+            title = first_line[2:].strip()
+
+        sections = []
+        current_heading = title
+        current_lines: list[str] = []
+
+        for line in text.split("\n"):
+            m = _HEADING_RE.match(line)
+            if m:
+                if current_lines:
+                    combined = "\n".join(current_lines).strip()
+                    if combined:
+                        sections.append({"heading": current_heading, "text": combined})
+                current_heading = m.group(2).strip()
+                current_lines = []
+            else:
+                current_lines.append(line)
+
+        if current_lines:
+            combined = "\n".join(current_lines).strip()
+            if combined:
+                sections.append({"heading": current_heading, "text": combined})
+
+        if not sections:
+            continue
+
+        full_content = "\n\n".join(f"## {s['heading']}\n{s['text']}" for s in sections)
+        pages.append({
+            "url": f"local://{md_file.name}",
+            "title": title,
+            "sections": sections,
+            "content": full_content,
+        })
+    return pages
