@@ -1,0 +1,63 @@
+[project]
+name = "hytale-rag"
+version = "1.0.0"
+description = "MCP server that gives Claude deep knowledge about Hytale server modding"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    {name = "Daniel Velez", email = "alejandrosmurf@gmail.com"},
+]
+keywords = ["hytale", "modding", "rag", "mcp", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "chromadb>=0.5.0",
+    "httpx>=0.27.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "ollama>=0.4.0",
+    "flask>=3.0.0",
+    "numpy>=1.26.0",
+    "tree-sitter>=0.23.0",
+    "tree-sitter-java>=0.23.0",
+    "typer[all]>=0.12.0",
+    "rich>=13.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/DanielVelezV/HytaleModdingRAG"
+Repository = "https://github.com/DanielVelezV/HytaleModdingRAG"
+Issues = "https://github.com/DanielVelezV/HytaleModdingRAG/issues"
+
+[project.scripts]
+hytale-rag = "cli:app"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "cli", "config", "indexer", "java_parser", "fts",
+    "scraper", "github_scraper", "decompiler", "diffing", "snapshots",
+    "server", "dashboard",
+]
+
+[tool.setuptools.package-data]
+"*" = [
+    "server/*.ps1",
+    "server/*.exe",
+    "server/hytale-downloader-linux-amd64",
+    "server/QUICKSTART.md",
+    "skills/**/*.md",
+]

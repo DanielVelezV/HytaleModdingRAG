@@ -1,0 +1,26 @@
+data/
+__pycache__/
+*.log
+*.pyc
+.venv/
+*.egg-info/
+hytale-rag-data-*.zip
+admin.py
+dist/
+build/
+
+# --- maintainer-only: index build pipeline (kept local, not published) ---
+java_parser.py
+indexer.py
+decompiler.py
+deobfuscator.py
+scraper.py
+github_scraper.py
+build_lite_pack.py
+build_release_zips.py
+make_release.py
+cleanup_chromadb.py
+eval/
+tests/
+TO-DO.md
+TO-FIX.MD
