@@ -1242,7 +1242,7 @@ org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
   "Authors": [{author_entry}],
   "Main": "{group}.{safe_name}Plugin",
   "LoadOrder": "POSTWORLD",
-  "ServerVersion": "^0.6.4"
+  "ServerVersion": "^0.6.6"
 }}
 """, encoding="utf-8")
 
